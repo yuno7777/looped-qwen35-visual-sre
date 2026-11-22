@@ -1,0 +1,32 @@
+# Python & virtual environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+
+# Model checkpoints, exports & large binary weights
+looped_qwen35/checkpoints/
+looped_qwen35/exports/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+
+# Duplicate LaTeX build output (canonical PDF lives in docs/)
+docs/paper/main.pdf
+docs/paper/*.aux
+docs/paper/*.log
+docs/paper/*.out
+
+# Archived pre-SRE starter files
+cot_dataset_builder/archive_starter/
+
+# Secrets & OS junk
+.env
+.env.*
+.DS_Store
+Thumbs.db

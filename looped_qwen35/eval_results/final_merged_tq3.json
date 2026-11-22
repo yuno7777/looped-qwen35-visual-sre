@@ -1,0 +1,278 @@
+{
+  "run_name": "final_merged_tq3",
+  "checkpoint": "looped_qwen35\\exports\\looped_qwen35_sre_final",
+  "num_loops": 2,
+  "kv_quant": "turboquant_3bit",
+  "residual_window": 64,
+  "reinject_weight": 0.990172,
+  "num_samples": 15,
+  "elapsed_seconds": 348.42,
+  "metrics": {
+    "tool_accuracy_pct": 33.33,
+    "schema_validity_pct": 40.0,
+    "format_compliance_pct": 66.67,
+    "mean_reward": 0.3933,
+    "truncation_rate_pct": 6.67,
+    "num_failures": 10
+  },
+  "loop_loss_comparison": {
+    "1": 4.4928,
+    "2": 4.4871,
+    "3": 4.5013
+  },
+  "memory": {
+    "peak_vram_gb": 6.474,
+    "max_attention_kv_bytes": 10435344,
+    "max_deltanet_state_bytes": 39518208,
+    "max_attention_kv_mb": 9.952,
+    "max_deltanet_state_mb": 37.688
+  },
+  "samples": [
+    {
+      "id": "sre_050",
+      "expected_tool": "create_incident",
+      "parsed_tool": null,
+      "image_path": null,
+      "prompt": "[CRITICAL-ALERT] severity=SEV1 region=eu-west-1 | affected_services=['orders-db', 'checkout-api', 'auth-gateway'] | all three services redlining simultaneously: http_5xx=24-38%, p99_latency=2100-2850ms, cascading SLO breach requiring immediate on-call paging. Invoke the right SRE tool.",
+      "completion": "The dashboard shows multi-service cascading outage across three services, severity SEV1, all services affected, summary needs to be concise. Create_incident tool.\n\nParameters:\n- severity: \"SEV1\"\n- affected_services: [\"orders-db\", \"auth-gateway\", \"auth-service\"]\n- summary: \"Multi-service cascading outage across orders-db, auth-gateway, and auth-service requiring immediate on-call\"\n- page_oncall: true\n</think>\n\n{\"create_incident\": {\"severity\": \"SEV1\", \"affected_services\": [\"orders-db\", \"auth-gateway\", \"auth-service\"], \"summary\": \"Multi-service cascading outage across orders-db, auth-gateway, and auth-service requiring immediate on-call\", \"page_oncall\": true}}\n",
+      "generated_tokens": 163,
+      "total_reward": 0.15,
+      "format_valid": true,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": [
+        "unexpected top-level keys: ['create_incident']",
+        "missing or invalid 'tool'"
+      ]
+    },
+    {
+      "id": "sre_042",
+      "expected_tool": "create_incident",
+      "parsed_tool": "create_incident",
+      "image_path": "samples/sre_042_incident.png",
+      "prompt": "Global SLO burn alert (SEV1) affecting auth-gateway, payments-worker, search-indexer in `ap-south-1`. Inspect the attached multi-service Grafana dashboard and invoke the appropriate SRE tool.",
+      "completion": "The dashboard shows:\n- CRITICAL SLO BREACH (SEV1)\n- Cascading multi-service outage: auth-gateway, payments-worker, search-indexer\n- Page on-call required\n\nThis matches create_incident with severity SEV1, affected_services [\"auth-gateway\", \"payments-worker\", \"search-indexer\"], summary \"Cascading multi-service outage\", page_oncall true.\n\nOutput only JSON.\n</think>\n\n{\"tool\": \"create_incident\", \"arguments\": {\"severity\": \"SEV1\", \"affected_services\": [\"auth-gateway\", \"payments-worker\", \"search-indexer\"], \"summary\": \"Cascading multi-service outage: all three services (auth-gateway, payments-worker, search-indexer) show simultaneous SLO breaches and latency spikes, with no healthy service; page on-call required.\", \"page_oncall\": true}}\n",
+      "generated_tokens": 183,
+      "total_reward": 1.0,
+      "format_valid": true,
+      "schema_valid": true,
+      "tool_match": true,
+      "truncated_think": false,
+      "schema_errors": []
+    },
+    {
+      "id": "sre_049",
+      "expected_tool": "create_incident",
+      "parsed_tool": null,
+      "image_path": "samples/sre_049_incident.png",
+      "prompt": "Global SLO burn alert (SEV2) affecting search-indexer, orders-db, checkout-api in `us-east-1`. Inspect the attached multi-service Grafana dashboard and invoke the appropriate SRE tool.",
+      "completion": "The dashboard shows:\n- CRITICAL SLO BREACH (SEV2)\n- Cascading Multi-Service Outage across search-indexer, orders-db, checkout-api in us-east-1\n- Page on-call required\n\nThis is multi-service cascading outage → create_incident.\n\nParameters:\n- severity: SEV2\n- affected_services: [\"search-indexer\", \"orders-db\", \"checkout-api\"]\n- summary: \"Cascading multi-service outage causing 5xx error rate to exceed 10% and SLO breach across all three services\"\n- page_oncall: true\n</think>\n\n{\"tool\": \"create_incident\", \"arguments\": {\"severity\": \"SEV2\", \"affected_services\": [\"search-indexer\", \"orders-db\", \"checkout-api\"], \"summary\": \"Cascading multi-service outage causing 5xx error rate to exceed 10% and SLO breach",
+      "generated_tokens": 192,
+      "total_reward": 0.0,
+      "format_valid": false,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": [
+        "invalid JSON: Unterminated string starting at"
+      ]
+    },
+    {
+      "id": "sre_036",
+      "expected_tool": "query_logs",
+      "parsed_tool": null,
+      "image_path": "samples/sre_036_logs.png",
+      "prompt": "Intermittent latency warning on `search-indexer` over the past 30 minutes (suspected `connection_reset` FATAL events). Inspect the attached Grafana dashboard and choose the right SRE tool.",
+      "completion": "The dashboard shows:\n- Service: search-indexer\n- Time window: 30 minutes\n- Severity: FATAL\n- Filter query: connection_reset\n- Reason: intermittent latency bursts, p99 latency spikes, intermittent downstream jitter, no deploys\n\nSo service: search-indexer, severity: FATAL, reason: intermittent latency bursts, filter_query: connection_reset\n</think>\n\n{\"service\": \"search-indexer\", \"reason\": \"Intermittent latency bursts with p99 latency spikes and intermittent downstream jitter, no deploys\", \"severity\": \"FATAL\"}\n",
+      "generated_tokens": 123,
+      "total_reward": 0.15,
+      "format_valid": true,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": [
+        "unexpected top-level keys: ['reason', 'service', 'severity']",
+        "missing or invalid 'tool'"
+      ]
+    },
+    {
+      "id": "sre_031",
+      "expected_tool": "query_logs",
+      "parsed_tool": "create_incident",
+      "image_path": "samples/sre_031_logs.png",
+      "prompt": "Intermittent latency warning on `search-indexer` over the past 15 minutes (suspected `upstream_timeout` ERROR events). Inspect the attached Grafana dashboard and choose the right SRE tool.",
+      "completion": "The dashboard shows: intermittent latency bursts, CPU stable, memory stable, HTTP 5xx healthy, no deploys. This is multi-service cascading outage → create_incident.\n\nParameters: severity SEV2, affected_services [\"search-indexer\"], summary \"Intermittent latency bursts\", page_oncall true.\n</think>\n\n{\"tool\": \"create_incident\", \"arguments\": {\"severity\": \"SEV2\", \"affected_services\": [\"search-indexer\"], \"summary\": \"Intermittent latency bursts with intermittent downstream jitter, no deploys, healthy error rates.\", \"page_oncall\": true}}\n",
+      "generated_tokens": 129,
+      "total_reward": 0.5,
+      "format_valid": true,
+      "schema_valid": true,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": []
+    },
+    {
+      "id": "sre_039",
+      "expected_tool": "query_logs",
+      "parsed_tool": "create_incident",
+      "image_path": "samples/sre_039_logs.png",
+      "prompt": "Intermittent latency warning on `auth-gateway` over the past 15 minutes (suspected `upstream_timeout` FATAL events). Inspect the attached Grafana dashboard and choose the right SRE tool.",
+      "completion": "The dashboard shows:\n- Service: auth-gateway\n- Time window: 15 min\n- Severity: FATAL\n- Query filter: upstream_timeout\n- No deploys\n\nThis is a multi-service cascading outage across auth-gateway, so use create_incident.\n\nParameters:\n- severity: \"FATAL\"\n- affected_services: [\"auth-gateway\"]\n- summary: \"Intermittent latency bursts with intermittent downstream jitter; upstream_timeout FATAL events causing service degradation\"\n- page_oncall: false (not a page-on-call, just an incident)\n\nOutput only JSON.\n</think>\n\n{\"tool\": \"create_incident\", \"arguments\": {\"severity\": \"FATAL\", \"affected_services\": [\"auth-gateway\"], \"summary\": \"Intermittent latency bursts with intermittent downstream jitter; upstream_timeout FATAL events causing service degradation.\", \"page_oncall\": false}}\n",
+      "generated_tokens": 191,
+      "total_reward": 0.15,
+      "format_valid": true,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": [
+        "arguments.severity: 'FATAL' not in enum ['SEV1', 'SEV2', 'SEV3']"
+      ]
+    },
+    {
+      "id": "sre_021",
+      "expected_tool": "restart_pod_pool",
+      "parsed_tool": "restart_pod_pool",
+      "image_path": "samples/sre_021_oom.png",
+      "prompt": "Kubernetes pod health alert on `payments-worker` in namespace `prod-edge` (restart policy: `rolling`). Inspect the attached Grafana dashboard and invoke the single best SRE tool.",
+      "completion": "The dashboard shows:\n- Service: payments-worker\n- Namespace: prod-edge\n- Pod restarts: 8 (OOMKill sawtooth)\n- Strategy: rolling\n- reason: memory leak / OOM kill sawtooth pattern with RAM climbing linearly to 100%\n\nSo tool: restart_pod_pool\n\nParameters:\n- service: payments-worker\n- namespace: prod-edge\n- strategy: rolling\n- reason: memory leak / OOM kill sawtooth pattern with RAM climbing linearly to 100%\n</think>\n\n{\"tool\": \"restart_pod_pool\", \"arguments\": {\"service\": \"payments-worker\", \"namespace\": \"prod-edge\", \"strategy\": \"rolling\", \"reason\": \"Memory leak / OOM kill sawtooth pattern with RAM climbing linearly to 100%\"}}\n",
+      "generated_tokens": 177,
+      "total_reward": 1.0,
+      "format_valid": true,
+      "schema_valid": true,
+      "tool_match": true,
+      "truncated_think": false,
+      "schema_errors": []
+    },
+    {
+      "id": "sre_025",
+      "expected_tool": "restart_pod_pool",
+      "parsed_tool": "restart_pod_pool",
+      "image_path": null,
+      "prompt": "[ALERT-LOG] service=auth-gateway namespace=prod-payments | pod_restarts=16 (ExitCode=137 OOMKilled) | memory climbs linearly 35% -> 100% every 15m in a sawtooth pattern; cpu=51%, 5xx=0.4%. Runbook specifies strategy='rolling'. Invoke the right SRE tool.",
+      "completion": "The dashboard shows: memory leak OOMKill sawtooth, memory linearly to 100% every 15m, restart pod pool. Service auth-gateway, namespace prod, strategy rolling, reason memory leak OOMKill sawtooth.\n\nOutput only JSON.\n</think>\n\n{\"tool\": \"restart_pod_pool\", \"arguments\": {\"service\": \"auth-gateway\", \"namespace\": \"prod\", \"strategy\": \"rolling\", \"reason\": \"Memory leak OOMKill sawtooth: memory linearly rises to 100% every 15 minutes, causing repeated pod crashes; service health degraded.\"}}\n",
+      "generated_tokens": 134,
+      "total_reward": 1.0,
+      "format_valid": true,
+      "schema_valid": true,
+      "tool_match": true,
+      "truncated_think": false,
+      "schema_errors": []
+    },
+    {
+      "id": "sre_026",
+      "expected_tool": "restart_pod_pool",
+      "parsed_tool": "restart_pod_pool",
+      "image_path": "samples/sre_026_oom.png",
+      "prompt": "Kubernetes pod health alert on `payments-worker` in namespace `prod-edge` (restart policy: `immediate`). Inspect the attached Grafana dashboard and invoke the single best SRE tool.",
+      "completion": "The dashboard shows:\n- Service: payments-worker\n - Namespace: prod-edge\n - Strategy: immediate (pod restarts)\n - Reason: memory leak OOMKill sawtooth pattern with RAM climbing linearly to 100% and repeated pod crashes.\n\nParameters: service, namespace, strategy, reason.\n\nOutput only JSON.\n</think>\n\n{\"tool\": \"restart_pod_pool\", \"arguments\": {\"service\": \"payments-worker\", \"namespace\": \"prod-edge\", \"strategy\": \"immediate\", \"reason\": \"Memory leak OOMKill sawtooth pattern: RAM rises linearly to 100% and pods repeatedly crash, indicating a memory leak\"}}\n",
+      "generated_tokens": 143,
+      "total_reward": 1.0,
+      "format_valid": true,
+      "schema_valid": true,
+      "tool_match": true,
+      "truncated_think": false,
+      "schema_errors": []
+    },
+    {
+      "id": "sre_015",
+      "expected_tool": "scale_service",
+      "parsed_tool": "scale_service",
+      "image_path": null,
+      "prompt": "[ALERT-LOG] service=checkout-api region=ap-south-1 replicas=6 | no deployments in 72h | rps surged 1150 -> 4650 req/s, cpu=93.4%, mem=57%, http_5xx=0.28% (healthy). Recommended target_replicas=12. Choose and invoke the correct SRE tool.",
+      "completion": "The alert shows: no deployments in 72h, rps surged 1150->4650, error rate healthy (<1%), so this is organic traffic saturation → scale_service.\n\nParameters: service=\"checkout-api\", target_replicas=12, reason=\"Organic traffic surge from 1150 to 4650 req/s, error rate healthy at 0.28% across all services\", region=\"ap-south-1\".\n</think>\n\n{\"tool\": \"scale_service\", \"arguments\": {\"service\": \"checkout-api\", \"target_replicas\": 12, \"reason\": \"Organic traffic surge from 1150 to 4650 req/s, error rate healthy at 0.28% across all services\", \"region\": \"ap-south-1\"}}\n",
+      "generated_tokens": 179,
+      "total_reward": 1.0,
+      "format_valid": true,
+      "schema_valid": true,
+      "tool_match": true,
+      "truncated_think": false,
+      "schema_errors": []
+    },
+    {
+      "id": "sre_016",
+      "expected_tool": "scale_service",
+      "parsed_tool": null,
+      "image_path": "samples/sre_016_scale.png",
+      "prompt": "High CPU alert on `auth-gateway` in `us-east-1` (currently 8 replicas; recommended capacity is 16 replicas). Inspect the attached Grafana dashboard and invoke the right SRE tool.",
+      "completion": "The dashboard shows: CPU saturation at 85% (above threshold), no recent deploys, traffic surge, memory stable. This is scale_service.\n\nParameters: service auth-gateway, target_replicas 16, reason \"Organic traffic surge causing CPU saturation above 85% threshold while error rate healthy below 1%\".\n\nOutput only JSON.\n</think>\n\n{\"service\": \"auth-gateway\", \"target_replicas\": 16, \"reason\": \"Organic traffic surge causing CPU saturation above 85% threshold while error rate healthy below 1%\"}\n",
+      "generated_tokens": 124,
+      "total_reward": 0.15,
+      "format_valid": true,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": [
+        "unexpected top-level keys: ['reason', 'service', 'target_replicas']",
+        "missing or invalid 'tool'"
+      ]
+    },
+    {
+      "id": "sre_013",
+      "expected_tool": "scale_service",
+      "parsed_tool": null,
+      "image_path": "samples/sre_013_scale.png",
+      "prompt": "High CPU alert on `search-indexer` in `us-east-1` (currently 10 replicas; recommended capacity is 20 replicas). Inspect the attached Grafana dashboard and invoke the right SRE tool.",
+      "completion": "The dashboard shows: CPU saturation at 85% with no recent deploys, traffic surge, healthy error rate. This is scale_service.\n\nParameters: service=search-indexer, target_replicas=20, reason=\"Organic traffic surge causing CPU saturation above 85% threshold while error rates remain healthy below 1%\".\n\nOutput only JSON.\n</think>\n\n{\"service\": \"search-indexer\", \"target_replicas\": 20, \"reason\": \"Organic traffic surge causing CPU saturation above 85% threshold while error rates remain healthy below 1%.\", \"reason\": \"Organic traffic surge causing CPU saturation above 85% threshold while error rates remain healthy below 1%.\"}}\n",
+      "generated_tokens": 152,
+      "total_reward": 0.0,
+      "format_valid": false,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": [
+        "invalid JSON: Extra data"
+      ]
+    },
+    {
+      "id": "sre_008",
+      "expected_tool": "trigger_rollback",
+      "parsed_tool": null,
+      "image_path": "samples/sre_008_rollback.png",
+      "prompt": "Alert triggered on `payments-worker` (staging, eu-west-1). Inspect the attached Grafana dashboard (previous stable release was `v2.5.0`, rolled out `v2.6.0` at t=30m) and execute the single best remediation tool.",
+      "completion": "The dashboard shows:\n- CPU: stable ~45%, then jumps to ~85% immediately after deploy v2.6.0 at t=30m\n- Memory: flat ~50%, no spike\n- p99 latency: flat ~100ms, then jumps to ~1500ms immediately after deploy v2.6.0 at t=30m\n- Error rate: flat ~0%, then jumps to ~15% after deploy v2.6.0 at t=30m\n\nThis is deployment regression: service payments-worker, target_version v2.6.0, reason \"sharp p99 latency spike to ~1500ms after deployment to v2.6.0 at t=30m\", environment staging.\n\nParameters: service payments-worker, target_version v2.6.0, reason \"sharp p99 latency spike to",
+      "generated_tokens": 192,
+      "total_reward": -0.2,
+      "format_valid": false,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": true,
+      "schema_errors": [
+        "missing </think>"
+      ]
+    },
+    {
+      "id": "sre_007",
+      "expected_tool": "trigger_rollback",
+      "parsed_tool": null,
+      "image_path": "samples/sre_007_rollback.png",
+      "prompt": "Alert triggered on `auth-gateway` (prod, us-east-1). Inspect the attached Grafana dashboard (previous stable release was `v2.4.0`, rolled out `v2.5.0` at t=30m) and execute the single best remediation tool.",
+      "completion": "The dashboard shows:\n- Auth-gateway, prod environment\n- Previous version v2.4.0, deployed v2.5.0 at t=30m\n- CPU stable ~40%, p99 latency spikes to ~1200ms after deployment\n- This is deployment regression (trigger_rollback)\n\nParameters:\n- service: auth-gateway\n- target_version: v2.5.0\n- reason: p99 latency jumped from ~500ms to ~1200ms after deployment, indicating regression\n- environment: prod\n</think>\n\n{\"tool\": \"trigger_rollback\", \"arguments\": {\"service\": \"auth-gateway\", \"target_version\": \"v2.5.0\", \"reason\": \"p99 latency jumped from ~500ms to ~1200ms immediately after deployment to v2.5.0, indicating a deployment",
+      "generated_tokens": 192,
+      "total_reward": 0.0,
+      "format_valid": false,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": [
+        "invalid JSON: Unterminated string starting at"
+      ]
+    },
+    {
+      "id": "sre_009",
+      "expected_tool": "trigger_rollback",
+      "parsed_tool": null,
+      "image_path": "samples/sre_009_rollback.png",
+      "prompt": "Alert triggered on `search-indexer` (prod, ap-south-1). Inspect the attached Grafana dashboard (previous stable release was `v2.6.0`, rolled out `v2.7.0` at t=30m) and execute the single best remediation tool.",
+      "completion": "The dashboard shows:\n- Deploy v2.7.0 at t=30m\n- CPU stable ~45%, memory flat ~50%, error rate flat ~5%\n- p99 latency flat ~1000ms\n- No crash, no saturation, no jitter, no cascading\n\nThis is organic traffic saturation, scale_service.\n\nParameters: service=\"search-indexer\", target_replicas 2, region=\"ap-south-1\", reason=\"Organic traffic surge causing p99 latency spike to ~1000ms while error rate and latency remain stable, no crash or cascading.\"\n\nOutput only JSON.\n</think>\n\n{\"tool\": \"scale_service\", \"arguments\": {\"service\": \"search-indexer\", \"target_replicas\": 2, \"reason\": \"Organic traffic surge causing p99 latency to spike to ~1000ms while error rate and",
+      "generated_tokens": 192,
+      "total_reward": 0.0,
+      "format_valid": false,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": [
+        "invalid JSON: Unterminated string starting at"
+      ]
+    }
+  ]
+}

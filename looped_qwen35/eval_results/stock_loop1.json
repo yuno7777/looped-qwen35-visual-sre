@@ -1,0 +1,115 @@
+{
+  "run_name": "stock_loop1",
+  "checkpoint": "stock:Qwen/Qwen3.5-0.8B",
+  "num_loops": 1,
+  "kv_quant": "none",
+  "residual_window": 64,
+  "reinject_weight": 0.990048,
+  "num_samples": 5,
+  "elapsed_seconds": 166.86,
+  "metrics": {
+    "tool_accuracy_pct": 20.0,
+    "schema_validity_pct": 20.0,
+    "format_compliance_pct": 20.0,
+    "mean_reward": 0.08,
+    "truncation_rate_pct": 60.0,
+    "num_failures": 4
+  },
+  "loop_loss_comparison": {
+    "1": 1.7889,
+    "2": 1.8654,
+    "3": 1.8596
+  },
+  "memory": {
+    "peak_vram_gb": 5.978,
+    "max_attention_kv_bytes": 21356544,
+    "max_deltanet_state_bytes": 19759104,
+    "max_attention_kv_mb": 20.367,
+    "max_deltanet_state_mb": 18.844
+  },
+  "samples": [
+    {
+      "id": "niche_020",
+      "expected_tool": "click_ui_element",
+      "parsed_tool": null,
+      "image_path": "samples/ui_004.png",
+      "prompt": "Locate the primary 'Inspect Logs' button in the attached console screenshot and perform a double_click at its center coordinates with your confidence score (screen #4).",
+      "completion": "The user wants to locate a specific button in a screenshot and perform a double-click action on it.\n\n1.  **Analyze the Screenshot:**\n    *   The image shows a \"Admin Operations Console\" interface.\n    *   There are two buttons visible:\n        *   A grey button labeled \"Cancel\" on the left.\n        *   A blue button labeled \"Inspect Logs\" on the right.\n    *   The user's request specifies the \"primary 'Inspect Logs' button\". This is the blue button on the right.\n\n2.  **Determine Coordinates:**\n    *   The \"Inspect Logs\" button is located in the center-right area of the screen.\n    *   The bounding box for the button is roughly from x=500 to x=600 and y=300 to y=400.\n    *   The user wants a double-click at",
+      "generated_tokens": 192,
+      "total_reward": -0.2,
+      "format_valid": false,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": true,
+      "schema_errors": [
+        "missing </think>"
+      ]
+    },
+    {
+      "id": "niche_016",
+      "expected_tool": "create_support_ticket",
+      "parsed_tool": null,
+      "image_path": null,
+      "prompt": "User CUST-10284 found that CSV export truncates UTF-8 emojis in column headers. File a medium-priority bug ticket; no escalation needed.",
+      "completion": "The user wants me to create a medium-priority bug ticket for customer CUST-10284 regarding CSV export truncating UTF-8 emojis in column headers. They want no escalation needed.\n\nLooking at the available tools, I need to find the appropriate tool. The `create_support_ticket` tool seems most relevant as it can create a triaged customer support ticket.\n\nLet me check the parameters:\n- customer_id: \"CUST-10284\"\n- category: \"bug\" (since it's a bug report)\n- priority: \"medium\"\n- summary: Something like \"CSV export truncates UTF-8 emojis in column headers\"\n- requires_escalation: false\n\nI need to make sure the summary is at least 5 characters long.\n\nLet me construct the JSON response.\n</think>\n\n{\"tool\": \"create_support_ticket\", \"arguments\": {\"customer_id\": \"C",
+      "generated_tokens": 192,
+      "total_reward": 0.0,
+      "format_valid": false,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": false,
+      "schema_errors": [
+        "invalid JSON: Unterminated string starting at"
+      ]
+    },
+    {
+      "id": "niche_019",
+      "expected_tool": "extract_invoice_fields",
+      "parsed_tool": null,
+      "image_path": "samples/invoice_004.png",
+      "prompt": "Extract the vendor name, invoice number, total amount, currency, due date, and line item count from the attached invoice screenshot (reference batch 4).",
+      "completion": "The user wants to extract specific fields from an invoice screenshot.\nI need to identify the following fields:\n1.  **Vendor Name**: Usually found in the top header or footer.\n2.  **Invoice Number**: Usually found in the header or footer.\n3.  **Total Amount**: Usually found in the footer or a specific line.\n4.  **Currency**: Usually found in the footer or a specific line.\n5.  **Due Date**: Usually found in the header or footer.\n6.  **Line Item Count**: Usually found in the header or footer.\n\nLooking at the screenshot:\n-   **Header**: \"INVOICE - Decan Compute Pvt\"\n-   **Line 1**: \"Invoice Number: INV-2026-441\"\n-   **Line 2**: \"Due Date: 2027-01-05\"\n-",
+      "generated_tokens": 192,
+      "total_reward": -0.2,
+      "format_valid": false,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": true,
+      "schema_errors": [
+        "missing </think>"
+      ]
+    },
+    {
+      "id": "niche_007",
+      "expected_tool": "query_inventory_db",
+      "parsed_tool": "query_inventory_db",
+      "image_path": null,
+      "prompt": "Query warehouse inventory for SKU-NV409 in the us-east region. Exclude reserved units and require a minimum quantity of 10.",
+      "completion": "The user wants me to query warehouse inventory for SKU-NV409 in the us-east region with specific parameters:\n- SKU: NV409\n- Warehouse region: us-east\n- Exclude reserved units: include_reserved = false\n- Minimum quantity: 10\n\nLooking at the available tools, I have `query_inventory_db` which matches this request. Let me check the parameters:\n- sku: \"NV409\"\n- warehouse_region: \"us-east\"\n- include_reserved: false\n- min_quantity: 10\n\nThis matches the required parameters for the `query_inventory_db` tool.\n</think>\n\n{\"tool\": \"query_inventory_db\", \"arguments\": {\"sku\": \"NV409\", \"warehouse_region\": \"us-east\", \"include_reserved\": false, \"min_quantity\": 10}}\n",
+      "generated_tokens": 178,
+      "total_reward": 1.0,
+      "format_valid": true,
+      "schema_valid": true,
+      "tool_match": true,
+      "truncated_think": false,
+      "schema_errors": []
+    },
+    {
+      "id": "niche_023",
+      "expected_tool": "schedule_maintenance_window",
+      "parsed_tool": null,
+      "image_path": null,
+      "prompt": "Schedule a 20-minute maintenance window for cdn-edge-router starting 2026-12-10T00:00:00Z. Notify #infra-noc, statuspage, #eng-all and enable automatic rollback.",
+      "completion": "The user wants me to schedule a maintenance window for a specific service. Let me analyze the request:\n\n1. Service name: cdn-edge-router\n2. Start time: 2026-12-10T00:00:00Z\n3. Duration: 20 minutes\n4. Notify channels: #infra-noc, statuspage, #eng-all\n5. Enable automatic rollback: true\n\nLooking at the available tools, I have:\n- `schedule_maintenance_window`: This tool has the exact parameters needed for this request.\n\nThe tool schema shows:\n- service_name: string\n- start_iso: string (ISO 8601 format)\n- duration_minutes: integer\n- notify_channels: array of strings\n- auto_rollback: boolean\n\nI need to format the start time properly. The user provided \"2026-12-10",
+      "generated_tokens": 192,
+      "total_reward": -0.2,
+      "format_valid": false,
+      "schema_valid": false,
+      "tool_match": false,
+      "truncated_think": true,
+      "schema_errors": [
+        "missing </think>"
+      ]
+    }
+  ]
+}

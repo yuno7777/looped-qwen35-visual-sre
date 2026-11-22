@@ -1,0 +1,45 @@
+{
+  "seed": 42,
+  "eval_ratio": 0.3,
+  "source_prompts": "cot_dataset_builder\\niche_prompts.jsonl",
+  "source_clean_dataset": "cot_dataset_builder\\dataset_clean.jsonl",
+  "counts": {
+    "total_prompts": 50,
+    "train_grpo_prompts": 35,
+    "eval_heldout": 15,
+    "train_sft_rows": 34,
+    "excluded_sft_rows_from_eval": 0
+  },
+  "per_tool_stratification": {
+    "create_incident": {
+      "train": 7,
+      "eval": 3
+    },
+    "query_logs": {
+      "train": 7,
+      "eval": 3
+    },
+    "restart_pod_pool": {
+      "train": 7,
+      "eval": 3
+    },
+    "scale_service": {
+      "train": 7,
+      "eval": 3
+    },
+    "trigger_rollback": {
+      "train": 7,
+      "eval": 3
+    }
+  },
+  "leakage_checks": {
+    "overlapping_ids": 0,
+    "overlapping_prompts": 0,
+    "status": "PASS"
+  },
+  "sha256": {
+    "train_sft.jsonl": "14760a1cc2e65e404e8c4ece9c99b6c3dff016af5d813ca743281076cb098ee1",
+    "train_grpo_prompts.jsonl": "8472e07543f20f17bf927e4e47a5825204ad5d639fbf42d3cd98f8f7eb6bb81e",
+    "eval_heldout.jsonl": "3e3982c792605feb175c5bff8939b1cb4b6d5f7c14c06abf4a7c9aeb24632795"
+  }
+}
