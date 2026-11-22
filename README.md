@@ -14,6 +14,9 @@
 </p>
 
 <p>
+  <a href="https://huggingface.co/kaii07/looped-qwen35-0.8b-visual-sre-v2.1">
+    <img src="https://img.shields.io/badge/Hugging_Face-v2.1_Weights-FFD21E?style=for-the-badge&logo=huggingface&logoColor=0A0A0A&labelColor=0A0A0A" alt="Hugging Face v2.1 Weights" />
+  </a>
   <a href="docs/Looped_Hybrid_Qwen35_Visual_SRE_Paper.pdf">
     <img src="https://img.shields.io/badge/Read_the_Paper-arXiv_PDF-7C3AED?style=for-the-badge&logo=adobeacrobatreader&logoColor=white&labelColor=0A0A0A" alt="Read the Paper" />
   </a>
