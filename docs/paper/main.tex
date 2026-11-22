@@ -11,6 +11,7 @@
 \usepackage{enumitem}
 \usepackage{titlesec}
 \usepackage{fancyhdr}
+\usepackage{placeins}
 
 \definecolor{linkblue}{HTML}{1D4ED8}
 \hypersetup{
@@ -48,6 +49,7 @@ and Hybrid-Safe TurboQuant on Consumer Hardware}\\[0.55em]
 {\large\bfseries Abhishek Satarkar}\\
 {\normalsize Independent Researcher}\\
 {\small ORCID: \href{https://orcid.org/0009-0003-4847-3288}{https://orcid.org/0009-0003-4847-3288} \;\textbar\; Code: \href{https://github.com/yuno7777/looped-qwen35-visual-sre}{https://github.com/yuno7777/looped-qwen35-visual-sre}}\\
+{\small Weights: \href{https://huggingface.co/kaii07/looped-qwen35-0.8b-visual-sre-v2.1}{https://huggingface.co/kaii07/looped-qwen35-0.8b-visual-sre-v2.1}}\\
 {\small November 2026}
 \end{center}
 \vspace{0.5em}
@@ -74,7 +76,7 @@ In this work, we investigate whether test-time depth via weight-tied looping \ci
     \item \textbf{Visual SRE Benchmark \& Leakage-Proof Distillation:} A synthetic dark-mode Grafana benchmark (50 balanced scenarios across 5 deterministic SRE tools, 40 multimodal + 10 text alerts) with SHA-256 verified zero-overlap splits (35 train / 15 held-out) and DeepSeek CoT + 25\% multi-turn error-recovery harvesting.
     \item \textbf{8\,GB Pure-PyTorch SFT \& GRPO Pipeline:} Assistant-only masked LoRA SFT targeting all 12 text-decoder linear projections (10.82M trainable parameters, 1.25\%) followed by pure-PyTorch GRPO using a shared-base frozen reference adapter ($\approx$21\,MB overhead, 3.37\,GB peak VRAM), lifting held-out accuracy from 0.0\% to 73.3\% (SFT) to 86.7\% (GRPO).
     \item \textbf{Surgical WSP Audit \& Hybrid-Safe TurboQuant:} Reversible MLP \texttt{down\_proj} directional ablation with a strict held-out rollback guardrail, plus \texttt{TurboQuantHybridCache} achieving 4.58$\times$ Attention KV compression at 3-bit while revealing a key accuracy-vs-compression trade-off on dense visual patch tokens.
-    \item \textbf{v2.0 Upgrades \& 3-Tier Generalization Gauntlet:} Vision-Prefix-Exempt 4-bit TurboQuant (+10.0\,pts OOD recovery), ETD middle-stack looping with \texttt{ARLoop} depth-attention residuals, and Dr. GRPO/DAPO with refusal and active zoom traces, evaluated across 50 unseen OOD dashboards (80.0\% v1), 50 \texttt{ChartQA} charts (72.0\% v2), and 50 \texttt{BFCL v3} prompts (74.0\% v2, +26.0\,pts over stock).
+    \item \textbf{v2.0/v2.1 Upgrades \& 3-Tier Generalization Gauntlet:} Vision-Prefix-Exempt 4-bit TurboQuant (+10.0\,pts OOD recovery), ETD middle-stack looping with \texttt{ARLoop} depth-attention residuals, fused \texttt{fla} Triton DeltaNet kernels (1.24$\times$ faster decode), and anti-abstention Dr. GRPO/DAPO, evaluated across 50 unseen OOD dashboards (84.0\% v2.1), 50 \texttt{ChartQA} charts (74.0\% v2.1), and 50 \texttt{BFCL v3} prompts (74.0\% v2, +26.0\,pts over stock).
 \end{enumerate}
 
 % ----------------------------------------------------------------------
@@ -280,11 +282,12 @@ $L=3$ & 80.0\% & 90.0\% & 80.0\% & \textbf{66.7\%} & 6.12 tok/s / 2.19\,GB \\
 (4) \textbf{Latent depth targets hard reasoning:} in Table~\ref{tab:loop_sweep}, Visual Shift and Pixel-Only saturate at $L=1$, while the adversarial Conflict Trap split improves from 60.0\% ($L=1$) to 66.7\% ($L=2, 3$).
 (5) \textbf{v2.1 resolves over-refusal and accelerates decode:} scaling SFT to 180 validated traces (8.9\% refusal mix, 0 overlap with held-out or OOD splits) and running 60-step Dr. GRPO/DAPO with a $-0.50$ false-abstention penalty (3.37\,GB peak VRAM) lifts v2.1 to a new best of \textbf{84.0\%} OOD accuracy (90.0\% schema valid, \textbf{86.7\%} Conflict Traps, \textbf{76.0\%} under 4-bit Vision-Exempt TurboQuant) and \textbf{74.0\%} \texttt{ChartQA} (80.0\% on the 15-prompt held-out set), while fused \texttt{fla} Triton DeltaNet kernels accelerate 2-loop decode by \textbf{1.24$\times$} (3.93 to 4.88\,tok/s, Table~\ref{tab:speedup}).
 
+\FloatBarrier
 % ----------------------------------------------------------------------
 % 7. Conclusion & Future Work
 % ----------------------------------------------------------------------
 \section{Conclusion \& Future Work}
-We demonstrated that a 0.8B hybrid vision-language model can be converted non-destructively into a Looped Hybrid Transformer and trained via CoT distillation, Dr. GRPO/DAPO RLVR, and ETD+ARLoop on a single 8\,GB laptop GPU, lifting held-out Visual SRE triage from 0.0\% to 86.7\%, OOD triage to 80.0\%, and public BFCL v3 tool calling to 74.0\% while validating Vision-Prefix-Exempt TurboQuant and WSP rollback safety. As future work, we plan to investigate in-layer Hardware ALU Experts routed via RLVR, allowing a lightweight per-loop router to dispatch exact numerical threshold checks and metric deltas directly to deterministic arithmetic units inside the looped transformer block. This architecture aims to eliminate floating-point reasoning drift on dense telemetry dashboards without incurring external tool-call round-trips.
+We demonstrated that a 0.8B hybrid vision-language model can be converted non-destructively into a Looped Hybrid Transformer and trained via CoT distillation, Dr. GRPO/DAPO RLVR, and ETD+ARLoop on a single 8\,GB laptop GPU, lifting held-out Visual SRE triage from 0.0\% to 86.7\%, OOD triage to 84.0\%, and public BFCL v3 tool calling to 74.0\% while validating Vision-Prefix-Exempt TurboQuant and WSP rollback safety. As future work, we plan to investigate in-layer Hardware ALU Experts routed via RLVR, allowing a lightweight per-loop router to dispatch exact numerical threshold checks and metric deltas directly to deterministic arithmetic units inside the looped transformer block. This architecture aims to eliminate floating-point reasoning drift on dense telemetry dashboards without incurring external tool-call round-trips.
 
 % ----------------------------------------------------------------------
 % References

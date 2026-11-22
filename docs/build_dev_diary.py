@@ -199,7 +199,8 @@ def build_pdf() -> Path:
         P(
             "By <b>Abhishek Satarkar</b> (Independent)  |  November 2026  |  Hardware: NVIDIA RTX 4060 Laptop GPU (8.00 GB VRAM)<br/>"
             "ORCID: <a href='https://orcid.org/0009-0003-4847-3288' color='#1D4ED8'>https://orcid.org/0009-0003-4847-3288</a>  |  "
-            "Code: <a href='https://github.com/yuno7777/looped-qwen35-visual-sre' color='#1D4ED8'>https://github.com/yuno7777/looped-qwen35-visual-sre</a>",
+            "Code: <a href='https://github.com/yuno7777/looped-qwen35-visual-sre' color='#1D4ED8'>https://github.com/yuno7777/looped-qwen35-visual-sre</a><br/>"
+            "Weights: <a href='https://huggingface.co/kaii07/looped-qwen35-0.8b-visual-sre-v2.1' color='#1D4ED8'>https://huggingface.co/kaii07/looped-qwen35-0.8b-visual-sre-v2.1</a>",
             meta_style,
         )
     )
