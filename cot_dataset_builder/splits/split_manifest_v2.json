@@ -1,0 +1,19 @@
+{
+  "counts": {
+    "train_sft_v2": 54,
+    "core_sre_sft": 34,
+    "negative_refusal_sft": 12,
+    "active_crop_zoom_sft": 8,
+    "train_grpo_prompts_v2": 47,
+    "eval_heldout_untouched": 15
+  },
+  "leakage_checks": {
+    "overlapping_ids": 0,
+    "status": "PASS"
+  },
+  "sha256": {
+    "train_sft_v2.jsonl": "f1235b115d68810994d053b11c174396df4ee148ec784197dc39b49c3042c343",
+    "train_grpo_prompts_v2.jsonl": "9ac7748b4887e27f62f976bafc2833e3daf574670969cbd7d754055197e2406c",
+    "eval_heldout.jsonl": "3e3982c792605feb175c5bff8939b1cb4b6d5f7c14c06abf4a7c9aeb24632795"
+  }
+}

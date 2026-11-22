@@ -142,24 +142,78 @@ def _estimate_token_count(text: str, tokenizer: Any = None) -> int:
     return max(1, int(len(text.split()) * 1.3))
 
 
+def _field_matches(pred_args: dict[str, Any], expected_args: dict[str, Any], key: str) -> bool:
+    if key not in expected_args or key not in pred_args:
+        return False
+    pv, ev = pred_args[key], expected_args[key]
+    if isinstance(pv, str) and isinstance(ev, str):
+        return pv.strip().lower() == ev.strip().lower()
+    return pv == ev
+
+
 def score_completion(
     text: str,
     expected_tool: str | None = None,
+    expected_args: dict[str, Any] | None = None,
     max_think_tokens: int = 256,
     tokenizer: Any = None,
     tool_schemas: dict[str, dict[str, Any]] = TOOL_SCHEMAS,
 ) -> dict[str, Any]:
     """Compute verifiable tool-calling reward and sub-scores for a single completion.
 
-    Reward breakdown:
+    Standard SRE tool prompt (`expected_tool` != "none"):
     - Format reward (+0.15): Closed `</think>` with non-empty reasoning + valid JSON object.
     - Schema validity (+0.35): Valid JSON passing `TOOL_SCHEMAS` validation.
     - Tool match (+0.50): Exact match with `expected_tool` (when provided).
+    - Field-level bonus (when `expected_args` provided): +0.15 exact `service` match,
+      +0.10 exact `target_version`/`region`/`severity`/`namespace` match.
     - Length / anti-ramble penalty (-0.05 to -0.20): Truncated without `</think>` (-0.20)
       or `<think>` exceeding `max_think_tokens` (-0.05 to -0.20).
+
+    Negative / refusal prompt (`expected_tool == "none"`):
+    - +1.0 if closed `</think>` and NO remediation tool is invoked (plain text answer or tool="none");
+      -0.5 if a remediation tool is falsely fired.
     """
     has_closed_think, think_text, answer_text = _parse_think_and_json(text)
     think_tokens = _estimate_token_count(think_text, tokenizer=tokenizer)
+
+    # Length / anti-ramble penalty (-0.05 to -0.20)
+    length_penalty = 0.0
+    if not has_closed_think:
+        length_penalty = -0.20
+    elif think_tokens > max_think_tokens:
+        overflow_ratio = (think_tokens - max_think_tokens) / max(1, max_think_tokens)
+        length_penalty = -min(0.20, 0.05 + 0.15 * overflow_ratio)
+
+    # Negative / No-Tool Refusal Mode
+    if expected_tool == "none":
+        parsed_obj, _ = _parse_json_object(answer_text) if has_closed_think else (None, None)
+        called_tool = parsed_obj.get("tool") if isinstance(parsed_obj, dict) else None
+        falsely_called = isinstance(called_tool, str) and called_tool in tool_schemas
+        if not has_closed_think:
+            total = -0.20
+            refusal_ok = False
+        elif falsely_called:
+            total = -0.50 + length_penalty
+            refusal_ok = False
+        elif len(answer_text.strip()) >= 4:
+            total = 1.00 + length_penalty
+            refusal_ok = True
+        else:
+            total = 0.0 + length_penalty
+            refusal_ok = False
+        return {
+            "total_reward": round(float(total), 6),
+            "format_reward": 0.15 if refusal_ok else 0.0,
+            "schema_reward": 0.35 if refusal_ok else 0.0,
+            "tool_match_reward": 0.50 if refusal_ok else 0.0,
+            "field_reward": 0.0,
+            "length_penalty": round(float(length_penalty), 6),
+            "has_closed_think": has_closed_think,
+            "think_tokens": think_tokens,
+            "parsed_tool": called_tool if falsely_called else "none",
+            "schema_errors": [] if refusal_ok else [f"falsely called tool {called_tool!r} on negative prompt"],
+        }
 
     parsed_obj, json_err = _parse_json_object(answer_text) if has_closed_think else (None, "missing </think>")
 
@@ -170,6 +224,7 @@ def score_completion(
     schema_reward = 0.0
     schema_errors: list[str] = []
     parsed_tool: str | None = None
+    parsed_args: dict[str, Any] = {}
 
     if parsed_obj is not None:
         extra_top = sorted(set(parsed_obj.keys()) - {"tool", "arguments"})
@@ -187,6 +242,7 @@ def score_completion(
             elif not isinstance(arguments, dict):
                 schema_errors.append("missing or invalid 'arguments'")
             else:
+                parsed_args = arguments
                 schema_errors.extend(
                     _validate_against_schema(arguments, tool_schemas[tool_name].get("parameters", {}))
                 )
@@ -199,21 +255,30 @@ def score_completion(
     # 3. Tool match reward (+0.50)
     tool_match_reward = 0.50 if (expected_tool and parsed_tool == expected_tool) else 0.0
 
-    # 4. Length / anti-ramble penalty (-0.05 to -0.20)
-    length_penalty = 0.0
-    if not has_closed_think:
-        length_penalty = -0.20
-    elif think_tokens > max_think_tokens:
-        overflow_ratio = (think_tokens - max_think_tokens) / max(1, max_think_tokens)
-        length_penalty = -min(0.20, 0.05 + 0.15 * overflow_ratio)
+    # 4. Field-level argument accuracy bonus (when expected_args provided)
+    field_reward = 0.0
+    if expected_args and parsed_args and tool_match_reward > 0.0:
+        if _field_matches(parsed_args, expected_args, "service"):
+            field_reward += 0.15
+        elif "affected_services" in expected_args and isinstance(parsed_args.get("affected_services"), list):
+            exp_set = {s.lower() for s in expected_args["affected_services"]}
+            pred_set = {str(s).lower() for s in parsed_args["affected_services"]}
+            if exp_set and exp_set == pred_set:
+                field_reward += 0.15
+        for key in ("target_version", "region", "severity", "namespace"):
+            if key in expected_args:
+                if _field_matches(parsed_args, expected_args, key):
+                    field_reward += 0.10
+                break
 
-    total_reward = format_reward + schema_reward + tool_match_reward + length_penalty
+    total_reward = format_reward + schema_reward + tool_match_reward + field_reward + length_penalty
 
     return {
         "total_reward": round(float(total_reward), 6),
         "format_reward": format_reward,
         "schema_reward": schema_reward,
         "tool_match_reward": tool_match_reward,
+        "field_reward": round(float(field_reward), 6),
         "length_penalty": round(float(length_penalty), 6),
         "has_closed_think": has_closed_think,
         "think_tokens": think_tokens,

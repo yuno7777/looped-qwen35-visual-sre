@@ -7,17 +7,21 @@
 <p>
   <img src="https://img.shields.io/badge/PyTorch-2.11_CUDA_12.8-0A0A0A?style=for-the-badge&logo=pytorch&logoColor=A78BFA&labelColor=0A0A0A&color=7C3AED" alt="PyTorch" />
   <img src="https://img.shields.io/badge/Model-Qwen3.5--0.8B-0A0A0A?style=for-the-badge&labelColor=0A0A0A&color=7C3AED" alt="Qwen3.5-0.8B" />
-  <img src="https://img.shields.io/badge/RLVR-Pure--PyTorch_GRPO-0A0A0A?style=for-the-badge&labelColor=0A0A0A&color=7C3AED" alt="GRPO RLVR" />
-  <img src="https://img.shields.io/badge/KV_Cache-TurboQuant_3--bit_(4.58x)-0A0A0A?style=for-the-badge&labelColor=0A0A0A&color=7C3AED" alt="TurboQuant 3-bit" />
+  <img src="https://img.shields.io/badge/v2.0-ETD_+_ARLoop-0A0A0A?style=for-the-badge&labelColor=0A0A0A&color=7C3AED" alt="v2.0 ETD + ARLoop" />
+  <img src="https://img.shields.io/badge/RLVR-Dr._GRPO_+_DAPO-0A0A0A?style=for-the-badge&labelColor=0A0A0A&color=7C3AED" alt="Dr. GRPO + DAPO" />
+  <img src="https://img.shields.io/badge/KV_Cache-Vis--Exempt_TurboQuant-0A0A0A?style=for-the-badge&labelColor=0A0A0A&color=7C3AED" alt="Vision-Exempt TurboQuant" />
   <img src="https://img.shields.io/badge/Hardware-RTX_4060_8GB-0A0A0A?style=for-the-badge&logo=nvidia&logoColor=A78BFA&labelColor=0A0A0A&color=7C3AED" alt="RTX 4060 8GB" />
 </p>
 
 <p>
   <a href="docs/Looped_Hybrid_Qwen35_Visual_SRE_Paper.pdf">
-    <img src="https://img.shields.io/badge/Read_the_Paper-arXiv_PDF_(6_Pages)-7C3AED?style=for-the-badge&logo=adobeacrobatreader&logoColor=white&labelColor=0A0A0A" alt="Read the Paper" />
+    <img src="https://img.shields.io/badge/Read_the_Paper-arXiv_PDF-7C3AED?style=for-the-badge&logo=adobeacrobatreader&logoColor=white&labelColor=0A0A0A" alt="Read the Paper" />
   </a>
   <a href="docs/Visual_SRE_Looped_Qwen35_Dev_Diary.pdf">
-    <img src="https://img.shields.io/badge/Read_the_Dev_Diary-Engineering_Log_(4_Pages)-A78BFA?style=for-the-badge&logo=readthedocs&logoColor=0A0A0A&labelColor=0A0A0A" alt="Read the Dev Diary" />
+    <img src="https://img.shields.io/badge/Read_the_Dev_Diary-Engineering_Log-A78BFA?style=for-the-badge&logo=readthedocs&logoColor=0A0A0A&labelColor=0A0A0A" alt="Read the Dev Diary" />
+  </a>
+  <a href="HARD_BENCHMARK_RESULTS.md">
+    <img src="https://img.shields.io/badge/3--Tier_Benchmarks-Stock_vs._v1_vs._v2-0A0A0A?style=for-the-badge&labelColor=0A0A0A&color=7C3AED" alt="3-Tier Benchmarks" />
   </a>
 </p>
 
@@ -52,7 +56,9 @@
 - **Leakage-Proof Visual SRE Distillation & Looped SFT:** Harvested 34 validated DeepSeek CoT traces (including 8 multi-turn tool-error recovery traces) strictly on the 35 training prompts (SHA-256 verified `0` overlap with the 15 held-out prompts). Assistant-only masked PEFT LoRA (`r=16`, `alpha=32`, 10.82M trainable params = 1.25% across all 12 text-decoder linear projections) made held-out Loop 2 loss (`0.8897`) beat Loop 1 (`0.9562`), lifting tool accuracy from **0.0% to 73.3%** and cutting `<think>` truncation from **100.0% to 0.0%**.
 - **Pure-PyTorch GRPO (RLVR) in 3.37 GB Peak VRAM:** Loads a frozen `ref` LoRA adapter (~21 MB overhead) on the same base weights for KL regularization (`beta=0.02`), micro-batches clipped surrogate updates one rollout at a time, and pushes held-out tool accuracy from **73.3% to 86.7% (13/15)** with mean reward `+0.8667`.
 - **Weight-Space Programming (WSP) Rollback Guardrail:** Contrastively probed all 24 MLP `down_proj` layers on GRPO passing vs. failing traces (localizing layers 23 and 22, editing `0.0152%` of weights) and cleanly reverted because SFT + GRPO had already eliminated the infinite thinking-loop bug.
-- **Hybrid-Safe TurboQuant KV Compression & Honest Trade-Off:** `TurboQuantHybridCache` applies Haar orthogonal rotation, `uint8` bit-packed Lloyd-Max centroids, and 1-bit QJL key residuals strictly to the **6 Gated Attention layers** while keeping all **18 DeltaNet states** untouched in native `bf16`/`fp32`. Achieves **4.58x** Attention KV compression at 3-bit (`48.38 MB -> 10.56 MB`) and **3.59x** at 4-bit on 2064 tokens, while exposing a real dense visual-patch OCR trade-off at 3-bit (`86.7% -> 33.3%` when ~1,100 chart patch tokens are flushed past the 64-token `bf16` window).
+- **Hybrid-Safe TurboQuant KV Compression & Vision-Prefix Protection (v2.0):** `TurboQuantHybridCache` applies Haar orthogonal rotation, `uint8` bit-packed Lloyd-Max centroids, and 1-bit QJL key residuals strictly to the **6 Gated Attention layers** while keeping all **18 DeltaNet states** untouched in native `bf16`/`fp32` (**4.58x** Attention KV compression at 3-bit, **3.59x** at 4-bit on 2064 tokens). In **v2.0**, `--protect-vision-prefix` (`--sink-tokens 4`) pins attention sinks and visual patch tokens permanently in native `bf16`, recovering **+10.0 points** on Tier 1 OOD under 4-bit TurboQuant (`62.0% -> 72.0%`, `85.0%` Visual Shift matching `bf16`).
+- **ETD Middle-Stack Looping + ARLoop Depth-Attention Residuals (v2.0):** Upgrades full-stack 24-layer looping to **Encode-Think-Decode (ETD)** (`layers 0..3` once, `layers 4..19` looped `num_loops` times with isolated per-loop caches, `layers 20..23` once) paired with **ARLoop** (`arXiv:2611.05234`) RMSNorm depth-attention over `[E_enc, h^(t-1), h^(t)]`, reducing DeltaNet recurrent cache overhead (`37.69 MB -> 31.41 MB`) and cutting 2-loop inference latency to `13.70 s/prompt` (`9.68 tok/s`).
+- **Dr. GRPO + DAPO Clip-Higher + Negative Refusal & Active `crop_zoom` (v2.0):** Upgrades RLVR to variance-unnormalized **Dr. GRPO** (`A_i = r_i - mean(r)`) with asymmetric **DAPO** (`arXiv:2503.14476`) clipping (`[-0.20, +0.28]`) in `3.36 GB` peak VRAM, plus 12 negative/no-tool refusal traces and 8 active `crop_zoom` multi-turn traces. Lifts **BFCL v3** tool-calling accuracy to **74.0%** (`+6.0 pts` over v1, `+26.0 pts` over Stock), repairs **BFCL Irrelevance** from `60.0%` to **73.3%**, and recovers **ChartQA** from `70.0%` to **72.0%**.
 - **2B Scaling Readiness:** Verified identical 24-layer hybrid topology and 12/12 LoRA target matching (0 vision overlap) for `Qwen/Qwen3.5-2B` with `--model-size 2b` and optional `--load-in-4bit` QLoRA flags.
 
 ---
@@ -77,6 +83,42 @@
 | `none` | 2064 | 48.38 MB | 37.69 MB | 86.06 MB | **1.00x** | 2.11 GB |
 | `turboquant_3bit` | 2064 | 10.56 MB | 37.69 MB | 48.25 MB | **4.58x** | 2.07 GB |
 | `turboquant_4bit` | 2064 | 13.49 MB | 37.69 MB | 51.18 MB | **3.59x** | 2.08 GB |
+
+### 3. 3-Tier Hard Stress-Test & Generalization Gauntlet (Stock vs. v1 vs. v2)
+
+Deterministic evaluation (`seed=1337`, greedy `do_sample=False`, `bfloat16`) on a single **RTX 4060 Laptop GPU (8.00 GB VRAM)**. Full per-sample logs and engineering takeaways are in [HARD_BENCHMARK_RESULTS.md](HARD_BENCHMARK_RESULTS.md).
+
+#### Tier 1: Hard OOD Visual SRE (50 Unseen Dashboards) + Vision-Prefix-Exempt TurboQuant
+
+| Configuration | Loops | KV Quant | Vis-Exempt | Overall Acc | Schema Valid | Visual Shift (20) | Pixel-Only (15) | Conflict Trap (15) | Peak VRAM |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Stock Qwen3.5-0.8B (1-Loop, bf16) | 1 | `none` | N/A | **0.0%** | 0.0% | 0.0% | 0.0% | 0.0% | 2.02 GB |
+| **v1 Merged (2-Loop, bf16)** | **2** | **`none`** | **N/A** | **80.0%** | **88.0%** | **85.0%** | **86.7%** | **66.7%** | **2.10 GB** |
+| v1 Merged (2-Loop, Naive TQ 4-bit) | 2 | `turboquant_4bit` | No | 62.0% | 66.0% | 60.0% | 66.7% | 60.0% | 2.04 GB |
+| **v1 Merged (2-Loop, TQ 4-bit Vis-Exempt)** | **2** | **`turboquant_4bit`** | **Yes** | **72.0%** | **86.0%** | **85.0%** | **73.3%** | **53.3%** | **2.06 GB** |
+| v1 Merged (2-Loop, Naive TQ 3-bit) | 2 | `turboquant_3bit` | No | 58.0% | 64.0% | 60.0% | 60.0% | 53.3% | 2.03 GB |
+| v1 Merged (2-Loop, TQ 3-bit Vis-Exempt) | 2 | `turboquant_3bit` | Yes | 44.0% | 48.0% | 40.0% | 66.7% | 26.7% | 2.05 GB |
+| v2 ETD+ARLoop (2-Loop, bf16) | 2 | `none` | N/A | **66.0%** | 84.0% | 70.0% | 66.7% | 60.0% | 2.09 GB |
+| v2 ETD+ARLoop (2-Loop, TQ 4-bit Vis-Exempt) | 2 | `turboquant_4bit` | Yes | **62.0%** | 82.0% | 75.0% | 53.3% | 53.3% | 2.04 GB |
+| v2 ETD+ARLoop (2-Loop, TQ 3-bit Vis-Exempt) | 2 | `turboquant_3bit` | Yes | 54.0% | 64.0% | 60.0% | 46.7% | 53.3% | 2.04 GB |
+
+#### Loop-Depth Sweep (`v1 Merged`, `bf16`, `num_loops = 1, 2, 3`)
+
+| Loop Depth | Overall Acc | Visual Shift (20) | Pixel-Only (15) | Conflict Trap (15) | Latency (s/prompt) | Throughput (tok/s) | Peak VRAM |
+| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| `num_loops=1` | 80.0% | 90.0% | 86.7% | 60.0% | 9.25 s | 16.31 | 2.02 GB |
+| `num_loops=2` | 80.0% | 85.0% | 86.7% | **66.7%** | 40.92 s* | - | 2.10 GB |
+| `num_loops=3` | 80.0% | 90.0% | 80.0% | **66.7%** | 24.62 s | 6.12 | 2.19 GB |
+
+<sub>*Resumed from cached v1 run prior to per-sample token logging. For comparison, v2 ETD+ARLoop (2-Loop, bf16) runs at <b>13.70 s/prompt (9.68 tok/s)</b> via 16-layer middle-stack looping.</sub>
+
+#### Tier 2 (`ChartQA`, 50 Samples) & Tier 3 (`BFCL v3`, 50 Samples)
+
+| Model | ChartQA Relaxed Acc | BFCL v3 Overall | BFCL Simple (20) | BFCL Multiple (15) | BFCL Irrelevance (15) | Peak VRAM |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| Stock Qwen3.5-0.8B (1-Loop) | **80.0%** | 48.0% | 40.0% | 6.7% | **100.0%** | 1.76 GB |
+| v1 Merged (2-Loop, bf16) | 70.0% | 68.0% | 65.0% | **80.0%** | 60.0% | 1.81 GB |
+| **v2 ETD+ARLoop (2-Loop, bf16)** | **72.0%** | **74.0%** | **75.0%** | 73.3% | **73.3%** | **1.80 GB** |
 
 ---
 
@@ -172,10 +214,41 @@ python looped_qwen35/infer_looped.py \
   --image cot_dataset_builder/samples/sre_042_incident.png \
   --kv-quant none
 
-# 3-bit or 4-bit TurboQuant (compresses 6 Gated Attention layers; 18 DeltaNet layers untouched)
+# 3-bit or 4-bit Vision-Prefix-Exempt TurboQuant (pins sinks + visual patches in bf16)
 python looped_qwen35/infer_looped.py \
   --checkpoint looped_qwen35/checkpoints/grpo_sre \
-  --kv-quant turboquant_4bit --residual-window 64
+  --image cot_dataset_builder/samples/sre_042_incident.png \
+  --kv-quant turboquant_4bit --residual-window 64 --protect-vision-prefix --sink-tokens 4
+```
+
+</details>
+
+<details>
+<summary><b>7. v2.0 Pipeline: ETD + ARLoop, Dr. GRPO/DAPO & 3-Tier Hard Benchmark Suite</b></summary>
+
+```bash
+# Build v2 training splits (34 core SRE + 12 negative refusal + 8 active crop_zoom)
+python cot_dataset_builder/build_v2_dataset.py
+
+# Train v2 SFT (ETD middle-stack 4..19 + ARLoop depth-attention residuals)
+python looped_qwen35/train_looped_sft.py \
+  --dataset cot_dataset_builder/splits/train_sft_v2.jsonl \
+  --eval-dataset cot_dataset_builder/splits/eval_heldout.jsonl \
+  --output-dir looped_qwen35/checkpoints/sft_sre_v2 \
+  --num-loops 2 --etd-middle-loop --reinject-mode arloop --epochs 3 --lr 2e-4 --grad-accum 4
+
+# Train v2 Dr. GRPO + DAPO Clip-Higher (3.36 GB peak VRAM)
+python looped_qwen35/train_looped_grpo.py \
+  --sft-checkpoint looped_qwen35/checkpoints/sft_sre_v2 \
+  --prompts cot_dataset_builder/splits/train_grpo_prompts_v2.jsonl \
+  --output-dir looped_qwen35/checkpoints/grpo_sre_v2 \
+  --num-loops 2 --group-size 4 --steps 15 --dr-grpo --clip-low 0.20 --clip-high 0.28
+
+# Merge v2 & run the full Stock vs. v1 vs. v2 3-tier benchmark gauntlet
+python looped_qwen35/merge_and_export.py \
+  --checkpoint looped_qwen35/checkpoints/grpo_sre_v2 \
+  --output-dir looped_qwen35/exports/looped_qwen35_sre_v2
+python looped_qwen35/hard_benchmark.py --include-v2 --include-loop-sweep --resume
 ```
 
 </details>

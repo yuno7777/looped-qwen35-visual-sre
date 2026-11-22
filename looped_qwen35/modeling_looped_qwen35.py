@@ -1,15 +1,18 @@
-"""Non-destructive Looped Hybrid Transformer wrapper for Qwen3.5 (Gated DeltaNet + Gated Attention).
+"""Non-destructive Looped Hybrid Transformer wrapper for Qwen3.5 (v1 & v2: ETD + ARLoop + Vision-Exempt TurboQuant).
 
 Built directly against `transformers.models.qwen3_5.modeling_qwen3_5` (transformers 5.24.0):
-- Uses `DynamicCache(config=text_config)` per loop to isolate both Gated DeltaNet
-  conv/recurrent states and Gated Attention KV states across loop iterations.
-- Preserves native vision encoding (`self.base_model.model.visual`), placeholder scattering,
-  3D M-RoPE (`compute_3d_position_ids` / `Qwen3_5TextRotaryEmbedding`), and dual masks
-  (`create_causal_mask` + `create_recurrent_attention_mask`).
+- Supports both v1 full-stack looping (layers 0..23) and v2 ETD middle-stack looping
+  (Encoder 0..3 once, Looped Reasoning Core 4..19 x num_loops, Decoder 20..23 once).
+- Supports both v1 scalar input re-injection (`reinject_mode="scalar"`) and v2 ARLoop
+  sliding-window depth-attention residuals (`reinject_mode="arloop"`).
+- Uses isolated `PerLoopHybridCache` per loop for the looped core (while sharing a single
+  cache for non-looped ETD Encoder/Decoder layers), with optional Vision-Prefix-Exempt
+  TurboQuant (~3-bit / 4-bit) strictly on the 6 Gated Attention layers.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, Sequence
 
@@ -44,13 +47,57 @@ class LoopedCausalLMOutput:
     video_outputs: BaseModelOutputWithPooling | None = None
 
 
+class ARLoopDepthGate(nn.Module):
+    """Sliding-window depth-attention residual gate (ARLoop, arXiv:2611.05234).
+
+    At loop step `t >= 1`, computes per-token softmax attention weights over the depth
+    window `[E_enc, h^(t-1), h^(t)]` using an RMSNorm + learned query vector `q_t`.
+    Initialized smoothly (`q_t = 0`, `anchor_bias = 4.6`) so step 0 training starts
+    near `0.99 * E_enc + 0.01 * h^(t)` with zero NaNs.
+    """
+
+    def __init__(
+        self,
+        hidden_size: int,
+        max_loops: int = 8,
+        init_anchor_bias: float = 4.6,
+        device: torch.device | None = None,
+    ) -> None:
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.max_loops = max_loops
+        self.scale = hidden_size**-0.5
+
+        self.norm = nn.RMSNorm(hidden_size, eps=1e-6, device=device, dtype=torch.float32)
+        self.loop_queries = nn.Parameter(torch.zeros((max_loops, hidden_size), dtype=torch.float32, device=device))
+        self.anchor_bias = nn.Parameter(torch.tensor(init_anchor_bias, dtype=torch.float32, device=device))
+
+    def forward(self, loop_idx: int, states: list[torch.Tensor]) -> tuple[torch.Tensor, torch.Tensor]:
+        """Aggregate depth states `[E_enc, ..., h^(t)]` -> `(blended_hidden, mean_anchor_weight)`."""
+        # V: (B, S, K, D)
+        v_stack = torch.stack(states, dim=-2)
+        k_norm = self.norm(v_stack.float())
+        q_idx = min(loop_idx, self.max_loops - 1)
+        q_vec = self.loop_queries[q_idx]  # (D,)
+
+        # scores: (B, S, K)
+        scores = torch.einsum("bskd,d->bsk", k_norm, q_vec) * self.scale
+        bias = torch.zeros((v_stack.shape[-2],), dtype=torch.float32, device=scores.device)
+        bias[0] = self.anchor_bias
+        scores = scores + bias.view(1, 1, -1)
+
+        weights = torch.softmax(scores, dim=-1)
+        blended = torch.einsum("bsk,bskd->bsd", weights.to(v_stack.dtype), v_stack)
+        mean_anchor_w = weights[..., 0].detach().mean()
+        return blended, mean_anchor_w
+
+
 class PerLoopHybridCache:
     """Holds one independent hybrid cache (`DynamicCache` or `TurboQuantHybridCache`) per loop iteration.
 
-    Qwen3.5 mixes 18 Gated DeltaNet recurrent layers with 6 Gated Attention layers.
-    Sharing a single cache across loops would feed the same token into each DeltaNet
-    conv/recurrent state `num_loops` times per decode step. Keeping one isolated cache
-    per loop guarantees loop `t` only reads and updates `caches[t]`.
+    In v2 ETD mode (`loop_start_layer=4, loop_end_layer=20`), Encoder layers (`0..3`) and
+    Decoder layers (`20..23`) use `caches[0]` exclusively while `caches[1:]` only populate
+    the looped Reasoning Core (`4..19`), cutting extra-loop cache memory by 33%.
     """
 
     def __init__(
@@ -59,6 +106,8 @@ class PerLoopHybridCache:
         num_loops: int,
         kv_quant: str = "none",
         residual_window: int = 64,
+        protect_vision_prefix: bool = True,
+        sink_tokens: int = 4,
         seed: int = 42,
     ) -> None:
         if num_loops < 1:
@@ -70,6 +119,8 @@ class PerLoopHybridCache:
         self.num_loops = num_loops
         self.kv_quant = kv_quant
         self.residual_window = residual_window
+        self.protect_vision_prefix = protect_vision_prefix
+        self.sink_tokens = sink_tokens
         self.seed = seed
 
         self._shared_compressor: TurboQuantCompressor | None = None
@@ -89,11 +140,18 @@ class PerLoopHybridCache:
                     config=self.text_config,
                     compressor=self._shared_compressor,
                     residual_window=self.residual_window,
+                    protect_vision_prefix=self.protect_vision_prefix,
+                    sink_tokens=self.sink_tokens,
                     seed=self.seed,
                 )
                 for _ in range(self.num_loops)
             ]
         return [DynamicCache(config=self.text_config) for _ in range(self.num_loops)]
+
+    def set_prefill_protected_mask(self, mask: torch.Tensor | None) -> None:
+        for cache in self.caches:
+            if isinstance(cache, TurboQuantHybridCache):
+                cache.set_prefill_protected_mask(mask)
 
     def __getitem__(self, loop_idx: int) -> DynamicCache:
         return self.caches[loop_idx]
@@ -102,23 +160,33 @@ class PerLoopHybridCache:
         return len(self.caches)
 
     def get_seq_length(self) -> int:
-        """Return cached sequence length (all loops advance in lockstep)."""
+        """Return cached sequence length (caches[0] always tracks all 24 layers)."""
         return self.caches[0].get_seq_length() if self.caches else 0
 
     def reset(self) -> None:
         self.caches = self._build_caches()
 
     def kv_cache_memory_bytes(self) -> dict[str, int]:
-        """Return exact byte totals across all loops split by 6 Attention KV layers vs 18 DeltaNet layers."""
+        """Return exact byte totals across all loops split by Attention KV (protected/quant/res) vs DeltaNet."""
         attn_total = 0
+        prot_total = 0
+        quant_total = 0
+        res_total = 0
         delta_total = 0
         for cache in self.caches:
             stats = measure_hybrid_cache_bytes(cache)
             attn_total += stats["attention_kv_bytes"]
+            prot_total += stats["protected_bf16_bytes"]
+            quant_total += stats["quantized_bytes"]
+            res_total += stats["residual_bf16_bytes"]
             delta_total += stats["deltanet_state_bytes"]
         return {
             "attention_kv_bytes": attn_total,
+            "protected_bf16_bytes": prot_total,
+            "quantized_bytes": quant_total,
+            "residual_bf16_bytes": res_total,
             "deltanet_state_bytes": delta_total,
+            "deltanet_bytes": delta_total,
             "total_bytes": attn_total + delta_total,
         }
 
@@ -136,13 +204,27 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         self.loop_config = loop_config or LoopedQwen35Config()
         self.num_loops = self.loop_config.num_loops
         self.aux_loop_loss_weight = self.loop_config.aux_loop_loss_weight
+        self.reinject_mode = self.loop_config.reinject_mode
 
-        # Keep scalar re-injection logit in fp32 for clean optimizer updates; cast during blending.
-        # sigmoid(4.6) ~= 0.9900 -> starts very close to pure input grounding before fine-tuning.
+        num_layers = int(self.text_config.num_hidden_layers)
+        self.loop_start_layer = max(0, min(self.loop_config.loop_start_layer, num_layers - 1))
+        self.loop_end_layer = max(self.loop_start_layer + 1, min(self.loop_config.loop_end_layer, num_layers))
+
         param_device = next(base_model.parameters()).device
         self.reinject_logit = nn.Parameter(
             torch.tensor(self.loop_config.reinject_init_logit, dtype=torch.float32, device=param_device)
         )
+        self.arloop_gate: ARLoopDepthGate | None = None
+        if self.reinject_mode == "arloop":
+            self.arloop_gate = ARLoopDepthGate(
+                hidden_size=int(self.text_config.hidden_size),
+                max_loops=max(8, self.num_loops + 2),
+                init_anchor_bias=self.loop_config.reinject_init_logit,
+                device=param_device,
+            )
+
+        self._last_per_loop_caches: PerLoopHybridCache | None = None
+        self._last_reinject_weight: float = float(torch.sigmoid(self.reinject_logit).item())
 
     @property
     def _core_model(self) -> Qwen3_5ForConditionalGeneration:
@@ -161,7 +243,39 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
 
     @property
     def reinject_weight(self) -> torch.Tensor:
+        if self.reinject_mode == "arloop" and self.arloop_gate is not None:
+            return torch.sigmoid(self.arloop_gate.anchor_bias)
         return torch.sigmoid(self.reinject_logit)
+
+    def get_loop_trainable_parameters(self) -> list[nn.Parameter]:
+        """Return trainable loop-control parameters (`reinject_logit` or `arloop_gate` params)."""
+        if self.reinject_mode == "arloop" and self.arloop_gate is not None:
+            return list(self.arloop_gate.parameters())
+        return [self.reinject_logit]
+
+    def export_loop_state(self) -> dict[str, Any]:
+        """Serialize loop parameters and config for `loop_state.pt`."""
+        import dataclasses
+
+        state: dict[str, Any] = {
+            "reinject_logit": self.reinject_logit.detach().cpu(),
+            "reinject_weight": float(self.reinject_weight.detach().float().item()),
+            "loop_config": dataclasses.asdict(self.loop_config),
+        }
+        if self.arloop_gate is not None:
+            state["arloop_gate_state"] = {
+                k: v.detach().cpu() for k, v in self.arloop_gate.state_dict().items()
+            }
+        return state
+
+    def restore_loop_state(self, loop_state: dict[str, Any], device: torch.device) -> None:
+        """Restore `reinject_logit` and optional `arloop_gate` weights from `loop_state.pt`."""
+        with torch.no_grad():
+            if "reinject_logit" in loop_state:
+                self.reinject_logit.copy_(loop_state["reinject_logit"].to(device=device, dtype=torch.float32))
+            if self.arloop_gate is not None and "arloop_gate_state" in loop_state:
+                sd = {k: v.to(device=device) for k, v in loop_state["arloop_gate_state"].items()}
+                self.arloop_gate.load_state_dict(sd)
 
     def enable_gradient_checkpointing(self) -> None:
         """Enable non-reentrant gradient checkpointing on the text decoder (compatible with looping + PEFT)."""
@@ -220,17 +334,49 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         num_loops: int | None = None,
         kv_quant: str | None = None,
         residual_window: int | None = None,
+        protect_vision_prefix: bool | None = None,
+        sink_tokens: int | None = None,
     ) -> PerLoopHybridCache:
         """Create isolated hybrid caches (Gated DeltaNet + Gated Attention) for each loop."""
         loops = self.num_loops if num_loops is None else num_loops
         quant_mode = self.loop_config.kv_quant if kv_quant is None else kv_quant
         window = self.loop_config.kv_residual_window if residual_window is None else residual_window
+        prot_vis = (
+            self.loop_config.kv_protect_vision_prefix
+            if protect_vision_prefix is None
+            else protect_vision_prefix
+        )
+        sinks = self.loop_config.kv_sink_tokens if sink_tokens is None else sink_tokens
         return PerLoopHybridCache(
             self.text_config,
             loops,
             kv_quant=quant_mode,
             residual_window=window,
+            protect_vision_prefix=prot_vis,
+            sink_tokens=sinks,
         )
+
+    def _compute_prefill_protected_mask(
+        self,
+        input_ids: torch.LongTensor | None,
+        seq_len: int,
+        sink_tokens: int,
+        device: torch.device,
+    ) -> torch.Tensor:
+        """Identify sink positions (`0..sink_tokens-1`) + all vision token positions for bf16 protection."""
+        mask = torch.zeros((seq_len,), dtype=torch.bool, device=device)
+        if sink_tokens > 0:
+            mask[: min(sink_tokens, seq_len)] = True
+        if input_ids is not None:
+            ids_1d = input_ids[0]
+            special_vis_ids = [
+                getattr(self.config, attr, None)
+                for attr in ("image_token_id", "video_token_id", "vision_start_token_id", "vision_end_token_id")
+            ]
+            for tid in special_vis_ids:
+                if tid is not None:
+                    mask |= ids_1d == int(tid)
+        return mask
 
     def _build_multimodal_inputs(
         self,
@@ -314,7 +460,6 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
                 mm_token_type_ids=mm_token_type_ids,
             )
 
-        # Mirror Qwen3_5TextModel.forward lines 1241-1269 exactly
         if position_ids is None:
             past_seen_tokens = reference_cache.get_seq_length() if reference_cache is not None else 0
             position_ids = (
@@ -356,6 +501,32 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
             vocab_size=self.text_config.vocab_size,
         )
 
+    def _run_layer_range(
+        self,
+        hidden_states: torch.Tensor,
+        decoder_layers: Any,
+        layer_types: Sequence[str],
+        start_idx: int,
+        end_idx: int,
+        position_embeddings: tuple[torch.Tensor, torch.Tensor],
+        causal_mask_mapping: dict[str, torch.Tensor | None],
+        text_position_ids: torch.LongTensor | None,
+        cache: DynamicCache | None,
+        use_cache: bool,
+        kwargs: dict[str, Any],
+    ) -> torch.Tensor:
+        for layer_idx in range(start_idx, end_idx):
+            hidden_states = decoder_layers[layer_idx](
+                hidden_states,
+                position_embeddings=position_embeddings,
+                attention_mask=causal_mask_mapping[layer_types[layer_idx]],
+                position_ids=text_position_ids,
+                cache=cache,
+                use_cache=use_cache,
+                **kwargs,
+            )
+        return hidden_states
+
     def forward(
         self,
         input_ids: torch.LongTensor | None = None,
@@ -376,7 +547,7 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         aux_loop_loss_weight: float | None = None,
         **kwargs: Any,
     ) -> LoopedCausalLMOutput:
-        """Forward pass looping hidden states through all 24 Qwen3.5 decoder layers `num_loops` times."""
+        """Forward pass supporting v1 full-stack looping and v2 ETD middle-stack + ARLoop."""
         loops = self.num_loops if num_loops is None else num_loops
         if loops < 1:
             raise ValueError(f"num_loops must be >= 1, got {loops}")
@@ -413,6 +584,16 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
                 cache_container = PerLoopHybridCache(self.text_config, loops)
                 cache_container.caches = list(per_loop_caches)
 
+            # Register sink + vision protected mask on prefill when TurboQuant protection is active
+            if cache_container.get_seq_length() == 0 and cache_container.protect_vision_prefix:
+                prot_mask = self._compute_prefill_protected_mask(
+                    input_ids=input_ids,
+                    seq_len=int(base_inputs_embeds.shape[1]),
+                    sink_tokens=cache_container.sink_tokens,
+                    device=base_inputs_embeds.device,
+                )
+                cache_container.set_prefill_protected_mask(prot_mask)
+
         reference_cache = cache_container[0] if cache_container is not None else None
 
         # 3. Compute 3D M-RoPE and dual attention masks once across all loops
@@ -427,47 +608,113 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
             mm_token_type_ids=mm_token_type_ids,
         )
 
-        # 4. Run `loops` passes through the 24 hybrid decoder layers
         text_model = self._core_model.model.language_model
-        decoder_layers = text_model.layers[: text_model.config.num_hidden_layers]
+        total_layers = int(text_model.config.num_hidden_layers)
+        decoder_layers = text_model.layers[:total_layers]
         layer_types = text_model.config.layer_types
 
+        # 4a. ETD Encoder stage (layers 0 .. loop_start_layer - 1), run ONCE using shared caches[0]
         hidden_states = base_inputs_embeds
-        w_scalar = torch.sigmoid(self.reinject_logit).to(
-            dtype=base_inputs_embeds.dtype, device=base_inputs_embeds.device
-        )
+        if self.loop_start_layer > 0:
+            hidden_states = self._run_layer_range(
+                hidden_states,
+                decoder_layers,
+                layer_types,
+                0,
+                self.loop_start_layer,
+                position_embeddings,
+                causal_mask_mapping,
+                text_position_ids,
+                cache=reference_cache,
+                use_cache=use_cache,
+                kwargs=kwargs,
+            )
 
+        encoder_anchor = hidden_states  # E_base (v1) or E_enc (v2 ETD)
+
+        # 4b. Looped Reasoning Core (layers loop_start_layer .. loop_end_layer - 1)
+        w_scalar = torch.sigmoid(self.reinject_logit).to(
+            dtype=encoder_anchor.dtype, device=encoder_anchor.device
+        )
+        observed_anchor_w = float(w_scalar.detach().float().item())
         per_loop_losses: list[torch.Tensor] = []
         final_logits: torch.Tensor | None = None
+        prev_loop_hidden: torch.Tensor | None = None
 
         for loop_idx in range(loops):
             if loop_idx >= 1:
-                hidden_states = w_scalar * base_inputs_embeds + (1.0 - w_scalar) * hidden_states
+                if self.reinject_mode == "arloop" and self.arloop_gate is not None:
+                    # Sliding window: [E_enc, h^(t-1), h^(t)]
+                    window_states = [encoder_anchor]
+                    if prev_loop_hidden is not None:
+                        window_states.append(prev_loop_hidden)
+                    window_states.append(hidden_states)
+                    hidden_states, mean_w = self.arloop_gate(loop_idx, window_states)
+                    observed_anchor_w = float(mean_w.item())
+                else:
+                    hidden_states = w_scalar * encoder_anchor + (1.0 - w_scalar) * hidden_states
 
             loop_cache = cache_container[loop_idx] if cache_container is not None else None
-
-            for layer_idx, decoder_layer in enumerate(decoder_layers):
-                hidden_states = decoder_layer(
-                    hidden_states,
-                    position_embeddings=position_embeddings,
-                    attention_mask=causal_mask_mapping[layer_types[layer_idx]],
-                    position_ids=text_position_ids,
-                    cache=loop_cache,
-                    use_cache=use_cache,
-                    **kwargs,
-                )
+            core_out = self._run_layer_range(
+                hidden_states,
+                decoder_layers,
+                layer_types,
+                self.loop_start_layer,
+                self.loop_end_layer,
+                position_embeddings,
+                causal_mask_mapping,
+                text_position_ids,
+                cache=loop_cache,
+                use_cache=use_cache,
+                kwargs=kwargs,
+            )
+            prev_loop_hidden = hidden_states if loop_idx >= 1 else None
+            hidden_states = core_out
 
             is_final_loop = loop_idx == loops - 1
             if is_final_loop:
+                # 4c. ETD Output Decoder stage (layers loop_end_layer .. total_layers - 1), run ONCE
+                if self.loop_end_layer < total_layers:
+                    hidden_states = self._run_layer_range(
+                        hidden_states,
+                        decoder_layers,
+                        layer_types,
+                        self.loop_end_layer,
+                        total_layers,
+                        position_embeddings,
+                        causal_mask_mapping,
+                        text_position_ids,
+                        cache=reference_cache,
+                        use_cache=use_cache,
+                        kwargs=kwargs,
+                    )
                 normed_hidden = text_model.norm(hidden_states)
                 sliced_hidden = slice_logits_to_keep(normed_hidden, logits_to_keep)
                 final_logits = self._core_model.lm_head(sliced_hidden)
                 if labels is not None:
                     per_loop_losses.append(self._compute_ce_loss(final_logits, labels))
             elif labels is not None and aux_weight > 0.0:
-                mid_normed = text_model.norm(hidden_states)
+                # For auxiliary middle-loop supervision in ETD mode, project through decoder layers without mutating cache
+                mid_hidden = hidden_states
+                if self.loop_end_layer < total_layers:
+                    mid_hidden = self._run_layer_range(
+                        mid_hidden,
+                        decoder_layers,
+                        layer_types,
+                        self.loop_end_layer,
+                        total_layers,
+                        position_embeddings,
+                        causal_mask_mapping,
+                        text_position_ids,
+                        cache=None,
+                        use_cache=False,
+                        kwargs=kwargs,
+                    )
+                mid_normed = text_model.norm(mid_hidden)
                 mid_logits = self._core_model.lm_head(mid_normed)
                 per_loop_losses.append(self._compute_ce_loss(mid_logits, labels))
+
+        self._last_reinject_weight = observed_anchor_w
 
         # 5. Combine final loop loss + optional auxiliary middle-loop loss
         total_loss: torch.Tensor | None = None
@@ -489,7 +736,7 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
             per_loop_losses=per_loop_losses,
             final_loop_loss=final_loop_loss,
             aux_loop_loss=aux_loop_loss,
-            reinject_weight=float(w_scalar.detach().float().item()),
+            reinject_weight=observed_anchor_w,
             image_outputs=mm_outputs.get("image"),
             video_outputs=mm_outputs.get("video"),
         )
@@ -530,7 +777,7 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         batch_size = attention_mask.shape[0]
         device = attention_mask.device
 
-        text_pos = (attention_mask.long().cumsum(-1)[:, -1:] - 1).clamp_min(0)  # (bs, 1)
+        text_pos = (attention_mask.long().cumsum(-1)[:, -1:] - 1).clamp_min(0)
         rope_deltas = self._core_model.model.rope_deltas
         if rope_deltas is None:
             rope_deltas = torch.zeros((batch_size, 1), dtype=torch.long, device=device)
@@ -539,8 +786,8 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
             if rope_deltas.shape[0] != batch_size:
                 rope_deltas = rope_deltas.repeat_interleave(batch_size // rope_deltas.shape[0], dim=0)
 
-        vision_pos = text_pos.unsqueeze(0).expand(3, -1, -1) + rope_deltas.unsqueeze(0)  # (3, bs, 1)
-        return torch.cat([text_pos.unsqueeze(0), vision_pos], dim=0)  # (4, bs, 1)
+        vision_pos = text_pos.unsqueeze(0).expand(3, -1, -1) + rope_deltas.unsqueeze(0)
+        return torch.cat([text_pos.unsqueeze(0), vision_pos], dim=0)
 
     def _resolve_eos_token_ids(self, eos_token_id: int | Sequence[int] | None) -> set[int]:
         if eos_token_id is None:
@@ -560,7 +807,6 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         temperature: float = 1.0,
         top_p: float = 1.0,
     ) -> torch.LongTensor:
-        """Select the next token ID from `(batch_size, vocab_size)` logits."""
         if not do_sample or temperature <= 0.0:
             return torch.argmax(logits, dim=-1, keepdim=True)
 
@@ -592,6 +838,8 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         use_cache: bool = True,
         kv_quant: str | None = None,
         residual_window: int | None = None,
+        protect_vision_prefix: bool | None = None,
+        sink_tokens: int | None = None,
         do_sample: bool = False,
         temperature: float = 1.0,
         top_p: float = 1.0,
@@ -614,15 +862,20 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         generated_ids = input_ids
         cur_attention_mask = attention_mask
 
-        # Reset stale mRoPE deltas from any prior call
         self._core_model.model.rope_deltas = None
         per_loop_caches = (
-            self.create_per_loop_caches(loops, kv_quant=kv_quant, residual_window=residual_window)
+            self.create_per_loop_caches(
+                loops,
+                kv_quant=kv_quant,
+                residual_window=residual_window,
+                protect_vision_prefix=protect_vision_prefix,
+                sink_tokens=sink_tokens,
+            )
             if use_cache
             else None
         )
 
-        # Step 0: Prefill (processes full prompt + vision encoder once)
+        # Step 0: Prefill
         out = self.forward(
             input_ids=generated_ids,
             attention_mask=cur_attention_mask,
@@ -655,7 +908,7 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
                 self._last_per_loop_caches = per_loop_caches
                 return generated_ids
 
-        # Steps 1..max_new_tokens-1: Incremental cached decode (or uncached fallback)
+        # Steps 1..max_new_tokens-1: Incremental cached decode
         for _ in range(max_new_tokens - 1):
             if use_cache:
                 step_position_ids = self._build_decode_position_ids(cur_attention_mask)

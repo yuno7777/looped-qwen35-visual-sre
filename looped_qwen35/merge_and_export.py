@@ -59,16 +59,16 @@ def main(argv: list[str] | None = None) -> int:
         peft_model.eval()
 
         unmerged = LoopedQwen3_5ForConditionalGeneration(base_model=peft_model, loop_config=loop_cfg)
+        unmerged.restore_loop_state(loop_state, device)
         with torch.no_grad():
-            unmerged.reinject_logit.copy_(loop_state["reinject_logit"].to(device=device, dtype=torch.float32))
             unmerged._core_model.model.rope_deltas = None
             ref_logits = unmerged(input_ids=test_ids, attention_mask=test_mask, use_cache=False).logits.detach().float()
 
         merged_base = peft_model.merge_and_unload(safe_merge=True)
         merged_base.eval()
         merged_wrapper = LoopedQwen3_5ForConditionalGeneration(base_model=merged_base, loop_config=loop_cfg)
+        merged_wrapper.restore_loop_state(loop_state, device)
         with torch.no_grad():
-            merged_wrapper.reinject_logit.copy_(loop_state["reinject_logit"].to(device=device, dtype=torch.float32))
             merged_wrapper._core_model.model.rope_deltas = None
             merged_logits = merged_wrapper(input_ids=test_ids, attention_mask=test_mask, use_cache=False).logits.detach().float()
 
@@ -89,20 +89,15 @@ def main(argv: list[str] | None = None) -> int:
         ).to(device)
         merged_base.eval()
         merged_wrapper = LoopedQwen3_5ForConditionalGeneration(base_model=merged_base, loop_config=loop_cfg)
-        with torch.no_grad():
-            merged_wrapper.reinject_logit.copy_(loop_state["reinject_logit"].to(device=device, dtype=torch.float32))
+        merged_wrapper.restore_loop_state(loop_state, device)
         print("Source checkpoint already merged; exporting weights + loop_state.pt cleanly.")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     merged_base.save_pretrained(str(args.output_dir))
     processor.save_pretrained(str(args.output_dir))
 
-    export_state = {
-        "reinject_logit": merged_wrapper.reinject_logit.detach().cpu(),
-        "reinject_weight": float(merged_wrapper.reinject_weight.detach().float().item()),
-        "loop_config": dataclasses.asdict(loop_cfg),
-        "source_checkpoint": str(args.checkpoint),
-    }
+    export_state = merged_wrapper.export_loop_state()
+    export_state["source_checkpoint"] = str(args.checkpoint)
     if "wsp_patch" in loop_state:
         export_state["wsp_patch"] = loop_state["wsp_patch"]
     torch.save(export_state, args.output_dir / "loop_state.pt")

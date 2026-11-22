@@ -76,7 +76,8 @@ def attach_lora_and_freeze(
 
     for param in model._core_model.model.visual.parameters():
         param.requires_grad_(False)
-    model.reinject_logit.requires_grad_(True)
+    for param in model.get_loop_trainable_parameters():
+        param.requires_grad_(True)
 
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total = sum(p.numel() for p in model.parameters())
@@ -87,16 +88,12 @@ def save_looped_checkpoint(
     model: LoopedQwen3_5ForConditionalGeneration,
     output_dir: Path,
 ) -> None:
-    """Save PEFT LoRA adapter weights and `loop_state.pt` (reinject_logit + config metadata)."""
+    """Save PEFT LoRA adapter weights and `loop_state.pt` (reinject_logit / arloop_gate + config metadata)."""
     output_dir.mkdir(parents=True, exist_ok=True)
     model.base_model.save_pretrained(str(output_dir))
 
-    loop_state = {
-        "reinject_logit": model.reinject_logit.detach().cpu(),
-        "reinject_weight": float(model.reinject_weight.detach().float().item()),
-        "loop_config": dataclasses.asdict(model.loop_config),
-        "target_modules": QWEN35_TEXT_LORA_TARGET_MODULES,
-    }
+    loop_state = model.export_loop_state()
+    loop_state["target_modules"] = QWEN35_TEXT_LORA_TARGET_MODULES
     torch.save(loop_state, output_dir / "loop_state.pt")
 
 
@@ -205,6 +202,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--base-model-id", type=str, default=None, help="Explicit HF model ID override")
     parser.add_argument("--load-in-4bit", action="store_true", help="Enable 4-bit QLoRA loading (for 2B on 8GB VRAM)")
     parser.add_argument("--num-loops", type=int, default=2, help="Number of decoder loops per forward pass")
+    parser.add_argument(
+        "--etd-middle-loop",
+        action="store_true",
+        help="Enable v2 ETD middle-stack looping (Encoder 0..3 once, Core 4..19 x num_loops, Decoder 20..23 once)",
+    )
+    parser.add_argument(
+        "--reinject-mode",
+        type=str,
+        default="scalar",
+        choices=["scalar", "arloop"],
+        help="Re-injection mechanism: 'scalar' (v1) or 'arloop' (v2 depth-attention residuals)",
+    )
     parser.add_argument("--aux-weight", type=float, default=0.1, help="Auxiliary middle-loop loss weight")
     parser.add_argument("--epochs", type=int, default=3, help="Number of training epochs")
     parser.add_argument("--max-steps", type=int, default=-1, help="Optional cap on optimization steps (-1 = full epochs)")
@@ -244,6 +253,9 @@ def main(argv: list[str] | None = None) -> int:
         base_model_id=model_id,
         num_loops=args.num_loops,
         reinject_init_logit=4.6,
+        reinject_mode=args.reinject_mode,
+        loop_start_layer=4 if args.etd_middle_loop else 0,
+        loop_end_layer=20 if args.etd_middle_loop else 24,
         aux_loop_loss_weight=args.aux_weight,
         dtype="bfloat16",
         load_in_4bit=args.load_in_4bit,
@@ -300,8 +312,9 @@ def main(argv: list[str] | None = None) -> int:
     total_opt_steps = args.max_steps if args.max_steps > 0 else (steps_per_epoch * args.epochs)
     warmup_steps = max(1, int(total_opt_steps * args.warmup_ratio)) if total_opt_steps > 5 else 0
 
-    decay_params = [p for n, p in model.named_parameters() if p.requires_grad and n != "reinject_logit"]
-    no_decay_params = [model.reinject_logit]
+    loop_param_ids = {id(p) for p in model.get_loop_trainable_parameters()}
+    decay_params = [p for p in model.parameters() if p.requires_grad and id(p) not in loop_param_ids]
+    no_decay_params = model.get_loop_trainable_parameters()
     optimizer = torch.optim.AdamW(
         [
             {"params": decay_params, "lr": args.lr, "weight_decay": 0.01},

@@ -97,22 +97,32 @@ class MultimodalSFTCollator:
     ) -> list[dict[str, Any]]:
         """Convert JSONL messages + PIL images into Qwen3.5 AutoProcessor chat format."""
         formatted: list[dict[str, Any]] = []
-        images_attached = False
+        img_cursor = 0
 
         for msg in raw_messages:
             role = msg["role"]
             content = msg["content"]
 
-            if role == "user" and pil_images and not images_attached:
+            if role == "user":
                 text_str = content if isinstance(content, str) else str(content)
-                clean_text = IMAGE_TAG_RE.sub("", text_str).strip()
-                blocks: list[dict[str, Any]] = [{"type": "image", "image": img} for img in pil_images]
-                if clean_text:
-                    blocks.append({"type": "text", "text": clean_text})
-                formatted.append({"role": "user", "content": blocks})
-                images_attached = True
-            elif role == "user" and isinstance(content, str):
-                formatted.append({"role": "user", "content": [{"type": "text", "text": content}]})
+                has_tag = "<image>" in text_str
+                if pil_images and img_cursor < len(pil_images) and (has_tag or img_cursor == 0):
+                    # Attach 1 image per `<image>` user turn (supports multi-turn crop_zoom)
+                    if has_tag and len(pil_images) > 1:
+                        imgs_for_turn = [pil_images[img_cursor]]
+                        img_cursor += 1
+                    else:
+                        imgs_for_turn = pil_images[img_cursor:]
+                        img_cursor = len(pil_images)
+                    clean_text = IMAGE_TAG_RE.sub("", text_str).strip()
+                    blocks: list[dict[str, Any]] = [{"type": "image", "image": img} for img in imgs_for_turn]
+                    if clean_text:
+                        blocks.append({"type": "text", "text": clean_text})
+                    formatted.append({"role": "user", "content": blocks})
+                elif isinstance(content, str):
+                    formatted.append({"role": "user", "content": [{"type": "text", "text": content}]})
+                else:
+                    formatted.append({"role": role, "content": content})
             else:
                 formatted.append({"role": role, "content": content})
 

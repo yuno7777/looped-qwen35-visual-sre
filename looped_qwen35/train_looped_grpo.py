@@ -81,6 +81,7 @@ def load_grpo_prompts(prompts_path: Path) -> list[dict[str, Any]]:
                     "id": obj.get("id", f"prompt_{line_no}"),
                     "prompt": obj["prompt"],
                     "expected_tool": obj.get("expected_tool"),
+                    "expected_args": obj.get("expected_args"),
                     "image_path": resolved_img,
                 }
             )
@@ -178,17 +179,17 @@ def load_sft_model_for_grpo(
     peft_model.set_adapter("default")
 
     model = LoopedQwen3_5ForConditionalGeneration(base_model=peft_model, loop_config=loop_cfg)
-    sft_reinject_logit = loop_state["reinject_logit"].detach().clone().to(device=device, dtype=torch.float32)
-    with torch.no_grad():
-        model.reinject_logit.copy_(sft_reinject_logit)
+    model.restore_loop_state(loop_state, device)
+    sft_loop_snapshot = model.export_loop_state()
 
-    # Ensure vision encoder stays frozen while default LoRA + reinject_logit are trainable
+    # Ensure vision encoder stays frozen while default LoRA + loop gate params are trainable
     for param in model._core_model.model.visual.parameters():
         param.requires_grad_(False)
-    model.reinject_logit.requires_grad_(True)
+    for param in model.get_loop_trainable_parameters():
+        param.requires_grad_(True)
     model.enable_gradient_checkpointing()
 
-    return model, processor, sft_reinject_logit
+    return model, processor, sft_loop_snapshot
 
 
 def compute_completion_logps(
@@ -243,16 +244,12 @@ def save_grpo_checkpoint(
     model.base_model.set_adapter("default")
     model.base_model.save_pretrained(str(output_dir), selected_adapters=["default"])
 
-    loop_state = {
-        "reinject_logit": model.reinject_logit.detach().cpu(),
-        "reinject_weight": float(model.reinject_weight.detach().float().item()),
-        "loop_config": dataclasses.asdict(model.loop_config),
-    }
+    loop_state = model.export_loop_state()
     torch.save(loop_state, output_dir / "loop_state.pt")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Pure-PyTorch GRPO RLVR trainer for Looped Qwen3.5.")
+    parser = argparse.ArgumentParser(description="Pure-PyTorch GRPO / Dr. GRPO + DAPO RLVR trainer for Looped Qwen3.5.")
     parser.add_argument("--sft-checkpoint", type=Path, default=DEFAULT_SFT_CHECKPOINT, help="SFT checkpoint dir")
     parser.add_argument("--prompts", type=Path, default=DEFAULT_PROMPTS_PATH, help="Prompts JSONL path")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="GRPO checkpoint output dir")
@@ -265,7 +262,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--save-every", type=int, default=0, help="Save periodic checkpoint every N steps (0=off)")
     parser.add_argument("--lr", type=float, default=1e-5, help="AdamW learning rate")
     parser.add_argument("--kl-beta", type=float, default=0.02, help="KL regularization coefficient vs SFT ref")
-    parser.add_argument("--clip-eps", type=float, default=0.2, help="GRPO PPO-style ratio clip epsilon")
+    parser.add_argument("--dr-grpo", action="store_true", help="Use Dr. GRPO advantages A_i = r_i - mean(r) (no std norm)")
+    parser.add_argument("--clip-eps", type=float, default=0.2, help="Legacy symmetric clip epsilon (overridden by clip-low/high)")
+    parser.add_argument("--clip-low", type=float, default=None, help="DAPO lower clip epsilon (default: clip-eps)")
+    parser.add_argument("--clip-high", type=float, default=None, help="DAPO Clip-Higher upper epsilon (e.g. 0.28)")
     parser.add_argument("--max-new-tokens", type=int, default=192, help="Max new tokens per rollout")
     parser.add_argument("--max-think-tokens", type=int, default=256, help="Anti-ramble <think> token budget")
     parser.add_argument("--temperature", type=float, default=0.8, help="Rollout sampling temperature")
@@ -292,8 +292,11 @@ def main(argv: list[str] | None = None) -> int:
     device = torch.device("cuda")
     total_vram_gb = gb(torch.cuda.get_device_properties(0).total_memory)
 
+    clip_low = args.clip_low if args.clip_low is not None else args.clip_eps
+    clip_high = args.clip_high if args.clip_high is not None else args.clip_eps
+
     print("=" * 76)
-    print("LOOPED QWEN3.5 PURE-PYTORCH GRPO (RLVR)")
+    print(f"LOOPED QWEN3.5 PURE-PYTORCH {'DR. GRPO + DAPO' if args.dr_grpo else 'GRPO'} (RLVR)")
     print("=" * 76)
     print(f"GPU            : {torch.cuda.get_device_name(0)} ({total_vram_gb:.2f} GB VRAM)")
     print(f"SFT checkpoint : {args.sft_checkpoint}")
@@ -301,11 +304,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Output dir     : {args.output_dir}")
     print(
         f"Config         : steps={args.steps} | G={args.group_size} | lr={args.lr:.1e} | "
-        f"kl_beta={args.kl_beta} | clip_eps={args.clip_eps} | max_new_tokens={args.max_new_tokens}"
+        f"kl_beta={args.kl_beta} | clip=[-{clip_low:.2f}, +{clip_high:.2f}] | dr_grpo={args.dr_grpo}"
     )
 
     base_override = resolve_model_id(args.model_size, args.base_model_id) if (args.model_size or args.base_model_id) else None
-    model, processor, sft_reinject_logit = load_sft_model_for_grpo(
+    model, processor, sft_loop_snapshot = load_sft_model_for_grpo(
         sft_checkpoint=args.sft_checkpoint,
         device=device,
         num_loops_override=args.num_loops,
@@ -319,14 +322,16 @@ def main(argv: list[str] | None = None) -> int:
     trainable_params = [p for p in model.parameters() if p.requires_grad]
     trainable_count = sum(p.numel() for p in trainable_params)
     print(
-        f"Loaded model   : num_loops={model.num_loops} | reinject_w={model.reinject_weight.item():.5f} | "
-        f"trainable={trainable_count:,} | runnable_prompts={len(prompts)}"
+        f"Loaded model   : num_loops={model.num_loops} | mode={model.reinject_mode} | "
+        f"layers=[{model.loop_start_layer}:{model.loop_end_layer}] | "
+        f"reinject_w={model.reinject_weight.item():.5f} | trainable={trainable_count:,} | prompts={len(prompts)}"
     )
 
+    loop_param_ids = {id(p) for p in model.get_loop_trainable_parameters()}
     optimizer = torch.optim.AdamW(
         [
-            {"params": [p for n, p in model.named_parameters() if p.requires_grad and n != "reinject_logit"], "lr": args.lr, "weight_decay": 0.01},
-            {"params": [model.reinject_logit], "lr": args.lr * 10.0, "weight_decay": 0.0},
+            {"params": [p for p in trainable_params if id(p) not in loop_param_ids], "lr": args.lr, "weight_decay": 0.01},
+            {"params": model.get_loop_trainable_parameters(), "lr": args.lr * 10.0, "weight_decay": 0.0},
         ]
     )
 
@@ -367,6 +372,7 @@ def main(argv: list[str] | None = None) -> int:
                 score = score_completion(
                     decoded,
                     expected_tool=item["expected_tool"],
+                    expected_args=item.get("expected_args"),
                     max_think_tokens=args.max_think_tokens,
                     tokenizer=processor.tokenizer,
                 )
@@ -380,15 +386,15 @@ def main(argv: list[str] | None = None) -> int:
 
             # Compute frozen SFT reference log-probs using shared base + frozen "ref" adapter
             if args.kl_beta > 0.0:
-                saved_policy_logit = model.reinject_logit.detach().clone()
+                saved_policy_state = model.export_loop_state()
                 model.base_model.set_adapter("ref")
-                model.reinject_logit.copy_(sft_reinject_logit)
+                model.restore_loop_state(sft_loop_snapshot, device)
                 try:
                     for full_ids in rollout_ids_list:
                         ref_lp = compute_completion_logps(model, full_ids, prompt_len, prompt_inputs)
                         ref_logps_list.append(ref_lp)
                 finally:
-                    model.reinject_logit.copy_(saved_policy_logit)
+                    model.restore_loop_state(saved_policy_state, device)
                     model.base_model.set_adapter("default")
 
         rewards = [d["total_reward"] for d in reward_dicts]
@@ -436,7 +442,11 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  -> periodic checkpoint saved: {ckpt_dir}")
             continue
 
-        advantages = [(r - mean_r) / (std_r + 1e-6) for r in rewards]
+        if args.dr_grpo:
+            # Dr. GRPO: drop std normalization to eliminate length bias
+            advantages = [r - mean_r for r in rewards]
+        else:
+            advantages = [(r - mean_r) / (std_r + 1e-6) for r in rewards]
 
         model.train()
         model.base_model.set_adapter("default")
@@ -459,7 +469,8 @@ def main(argv: list[str] | None = None) -> int:
             adv = advantages[idx]
 
             surr1 = ratio * adv
-            surr2 = torch.clamp(ratio, 1.0 - args.clip_eps, 1.0 + args.clip_eps) * adv
+            # DAPO Clip-Higher asymmetric bounds [1 - clip_low, 1 + clip_high]
+            surr2 = torch.clamp(ratio, 1.0 - clip_low, 1.0 + clip_high) * adv
             pg_loss = -torch.min(surr1, surr2).mean()
 
             if args.kl_beta > 0.0:

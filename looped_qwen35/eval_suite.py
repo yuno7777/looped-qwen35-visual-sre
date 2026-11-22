@@ -84,14 +84,18 @@ def load_model_for_eval(
     kv_quant: str,
     residual_window: int,
     device: torch.device,
+    protect_vision_prefix: bool = True,
+    sink_tokens: int = 4,
 ) -> tuple[LoopedQwen3_5ForConditionalGeneration, Any, str]:
-    """Load stock, PEFT adapter checkpoint, or merged exported model."""
+    """Load stock, PEFT adapter checkpoint, or merged exported model (v1 scalar or v2 ETD+ARLoop)."""
     if checkpoint is None:
         cfg = LoopedQwen35Config(
             base_model_id=base_model_id,
             num_loops=num_loops,
             kv_quant=kv_quant,
             kv_residual_window=residual_window,
+            kv_protect_vision_prefix=protect_vision_prefix,
+            kv_sink_tokens=sink_tokens,
             dtype="bfloat16",
         )
         processor = LoopedQwen3_5ForConditionalGeneration.load_processor(base_model_id)
@@ -107,6 +111,8 @@ def load_model_for_eval(
     cfg_dict["num_loops"] = num_loops
     cfg_dict["kv_quant"] = kv_quant
     cfg_dict["kv_residual_window"] = residual_window
+    cfg_dict["kv_protect_vision_prefix"] = protect_vision_prefix
+    cfg_dict["kv_sink_tokens"] = sink_tokens
     cfg = LoopedQwen35Config(**cfg_dict)
 
     is_peft = (checkpoint / "adapter_config.json").exists()
@@ -127,8 +133,7 @@ def load_model_for_eval(
         kind = "merged"
 
     model = LoopedQwen3_5ForConditionalGeneration(base_model=wrapped_base, loop_config=cfg)
-    with torch.no_grad():
-        model.reinject_logit.copy_(loop_state["reinject_logit"].to(device=device, dtype=torch.float32))
+    model.restore_loop_state(loop_state, device)
     model.eval()
     return model, processor, kind
 

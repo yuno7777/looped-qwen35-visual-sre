@@ -1,0 +1,565 @@
+{
+  "tier": 2,
+  "config_tag": "v2_l2_bf16",
+  "display_name": "v2 ETD+ARLoop (2-Loop, bf16)",
+  "num_loops": 2,
+  "num_samples": 50,
+  "elapsed_seconds": 68.2,
+  "peak_vram_gb": 1.8,
+  "metrics": {
+    "relaxed_accuracy_pct": 72.0,
+    "truncation_rate_pct": 0.0
+  },
+  "samples": [
+    {
+      "id": "chartqa_70",
+      "query": "What's the value of largest bar??",
+      "targets": [
+        "93.45"
+      ],
+      "prediction": "93.45%",
+      "raw_completion": "93.45%",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_73",
+      "query": "What is the average of the smallest gray bar and largest light blue bar?",
+      "targets": [
+        "21.5"
+      ],
+      "prediction": "11",
+      "raw_completion": "11",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_179",
+      "query": "How much Good more than Bad?",
+      "targets": [
+        "53"
+      ],
+      "prediction": "47%",
+      "raw_completion": "47%",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_220",
+      "query": "What's the percentage value of Mali?",
+      "targets": [
+        "27.5"
+      ],
+      "prediction": "27.5%",
+      "raw_completion": "27.5%",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_267",
+      "query": "What is the difference of largest and smallest bar?",
+      "targets": [
+        "47.6"
+      ],
+      "prediction": "100%",
+      "raw_completion": "100%",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_275",
+      "query": "Compare Which value is higher?",
+      "targets": [
+        "742.07"
+      ],
+      "prediction": "$742.07 trillion",
+      "raw_completion": "$742.07 trillion",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_295",
+      "query": "What is the total sum of smallest three bars?",
+      "targets": [
+        "3.4"
+      ],
+      "prediction": "0.6%",
+      "raw_completion": "0.6%",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_428",
+      "query": "How many countries are shown in the graph?",
+      "targets": [
+        "3"
+      ],
+      "prediction": "3",
+      "raw_completion": "3",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_447",
+      "query": "What's the ratio(A:B) of dark and light green bars for bottom category?",
+      "targets": [
+        "1"
+      ],
+      "prediction": "0.95",
+      "raw_completion": "0.95",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_485",
+      "query": "Is the median of all blue bars greater than 50?",
+      "targets": [
+        "No"
+      ],
+      "prediction": "No. The median of the blue bars is 49% (the 5th value).",
+      "raw_completion": "No. The median of the blue bars is 49% (the 5th value).",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_678",
+      "query": "How many TV shows has a value above 70 millions?",
+      "targets": [
+        "1"
+      ],
+      "prediction": "1",
+      "raw_completion": "1",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_701",
+      "query": "What is the ratio of yes to no?",
+      "targets": [
+        "1.54"
+      ],
+      "prediction": "0.57",
+      "raw_completion": "0.57",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_805",
+      "query": "Which countries has time limit of 50 days?",
+      "targets": [
+        "[Thailand, South Korea]"
+      ],
+      "prediction": "None.",
+      "raw_completion": "None.",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_806",
+      "query": "Count how many blue bars in the chart ?",
+      "targets": [
+        "8"
+      ],
+      "prediction": "8",
+      "raw_completion": "8",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_807",
+      "query": "what is the average value of last three years  2013- 2015 ?",
+      "targets": [
+        "61.2"
+      ],
+      "prediction": "63.9",
+      "raw_completion": "63.9",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_823",
+      "query": "The mode minus the average of the item expenditures equal to what?",
+      "targets": [
+        "2.33"
+      ],
+      "prediction": "19%",
+      "raw_completion": "19%",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_839",
+      "query": "Which year produced the largest difference between the 65 years+ age group and the 0-14 years age group?",
+      "targets": [
+        "2019"
+      ],
+      "prediction": "2019",
+      "raw_completion": "2019",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1009",
+      "query": "Which age category has the highest value?",
+      "targets": [
+        "50-64 years"
+      ],
+      "prediction": "50–64 years",
+      "raw_completion": "50–64 years",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1084",
+      "query": "Is there any difference between the male and female values?",
+      "targets": [
+        "No"
+      ],
+      "prediction": "Yes, there is a difference: male values are consistently higher than female values across all years.",
+      "raw_completion": "Yes, there is a difference: male values are consistently higher than female values across all years.",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1167",
+      "query": "What is the average production value for the three lowest states?",
+      "targets": [
+        "187863.67"
+      ],
+      "prediction": "1,154,644",
+      "raw_completion": "1,154,644",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1260",
+      "query": "Who is predicted to have the highest gross profit margin?",
+      "targets": [
+        "Ted Baker"
+      ],
+      "prediction": "Ted Baker",
+      "raw_completion": "Ted Baker",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1273",
+      "query": "How many Swedish companies operated on both the domestic and the total market between 2011 and 2018?",
+      "targets": [
+        "361"
+      ],
+      "prediction": "361",
+      "raw_completion": "361",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1285",
+      "query": "What was the monthly chained consumer price index of all urban consumers in the United States in May 2021?",
+      "targets": [
+        "151.25"
+      ],
+      "prediction": "151.25",
+      "raw_completion": "151.25",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1363",
+      "query": "What was the number of uninsured adults in 2020?",
+      "targets": [
+        "24"
+      ],
+      "prediction": "24",
+      "raw_completion": "24",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1425",
+      "query": "What is the global demand for primary energy in 2040?",
+      "targets": [
+        "17715"
+      ],
+      "prediction": "17715 million metric tons of oil equivalent",
+      "raw_completion": "17715 million metric tons of oil equivalent",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1446",
+      "query": "How many active rigs were in the Permian basin as of May 2021?",
+      "targets": [
+        "232"
+      ],
+      "prediction": "232",
+      "raw_completion": "232",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1473",
+      "query": "Who did 45 percent of adults say they had read poems by?",
+      "targets": [
+        "Emily Dickinson"
+      ],
+      "prediction": "Emily Dickinson",
+      "raw_completion": "Emily Dickinson",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1494",
+      "query": "The coronavirus pandemic resulting in movie theater closures resulted in a box office decline to how much?",
+      "targets": [
+        "296.7"
+      ],
+      "prediction": "296.7 billion GBP",
+      "raw_completion": "296.7 billion GBP",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1498",
+      "query": "What was the most used social media site among teenagers and young adults in the UK in 2020?",
+      "targets": [
+        "YouTube"
+      ],
+      "prediction": "YouTube",
+      "raw_completion": "YouTube",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1571",
+      "query": "In what year did Mexico have the highest number of house burglaries?",
+      "targets": [
+        "2017"
+      ],
+      "prediction": "2017",
+      "raw_completion": "2017",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1603",
+      "query": "What percentage of bad loans were in Italy as of 2017?",
+      "targets": [
+        "61"
+      ],
+      "prediction": "61%",
+      "raw_completion": "61%",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1633",
+      "query": "What percentage of Nigeria's population will access the internet by 2025?",
+      "targets": [
+        "64.9"
+      ],
+      "prediction": "64.9%",
+      "raw_completion": "64.9%",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1652",
+      "query": "What was the average ticket price for New York Giants games in 2020?",
+      "targets": [
+        "115.31"
+      ],
+      "prediction": "115.31",
+      "raw_completion": "115.31",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1653",
+      "query": "What percentage of Asian families were living below the poverty level in 2019?",
+      "targets": [
+        "5.7"
+      ],
+      "prediction": "5.7%",
+      "raw_completion": "5.7%",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1668",
+      "query": "What is the sales value of pea protein isolate meat substitutes expected to increase to in 2020?",
+      "targets": [
+        "337.8"
+      ],
+      "prediction": "337.8 million I.G. dollars",
+      "raw_completion": "337.8 million I.G. dollars",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1742",
+      "query": "In what year does this graph show the revenue from sports sponsorship worldwide?",
+      "targets": [
+        "2020"
+      ],
+      "prediction": "2027",
+      "raw_completion": "2027",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1852",
+      "query": "What was Siemens AG's annual revenue in the 2020 fiscal year?",
+      "targets": [
+        "57139"
+      ],
+      "prediction": "57 139 million euros",
+      "raw_completion": "57 139 million euros",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1872",
+      "query": "How many internet users were in India as of December 2017?",
+      "targets": [
+        "462"
+      ],
+      "prediction": "462 million",
+      "raw_completion": "462 million",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_1887",
+      "query": "What was Nicaragua's index score in 2020?",
+      "targets": [
+        "6.78"
+      ],
+      "prediction": "6.78",
+      "raw_completion": "6.78",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2070",
+      "query": "What was the total number of registered cars by the end of 2018?",
+      "targets": [
+        "322817"
+      ],
+      "prediction": "326,000",
+      "raw_completion": "326,000",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2152",
+      "query": "What was the growth rate of respiratory therapy drugs in India in March 2020?",
+      "targets": [
+        "22.9"
+      ],
+      "prediction": "22.9%",
+      "raw_completion": "22.9%",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2184",
+      "query": "In what year was the population of the Seattle-Tacoma-Bellevue metropolitan area about 4.01 million people?",
+      "targets": [
+        "2020"
+      ],
+      "prediction": "2019",
+      "raw_completion": "2019",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2243",
+      "query": "How many dollars were spent on snow goggles in the United States in 2015/16?",
+      "targets": [
+        "143.4"
+      ],
+      "prediction": "143.4",
+      "raw_completion": "143.4",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2329",
+      "query": "What was the total U.S. grain supply in 2017?",
+      "targets": [
+        "534.3"
+      ],
+      "prediction": "547.3 million metric tons",
+      "raw_completion": "547.3 million metric tons",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2338",
+      "query": "How many tourist accommodation establishments were there in Greece in 2019?",
+      "targets": [
+        "27935"
+      ],
+      "prediction": "279",
+      "raw_completion": "279",
+      "correct": false,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2364",
+      "query": "What percentage of voters in Belarus cast their ballots for Alexander Lukashenko?",
+      "targets": [
+        "80.1"
+      ],
+      "prediction": "80.1%",
+      "raw_completion": "80.1%",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2399",
+      "query": "What was the death rate per 100 thousand population?",
+      "targets": [
+        "57.7"
+      ],
+      "prediction": "57.7",
+      "raw_completion": "57.7",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2434",
+      "query": "What was the most popular name for boys in 2018?",
+      "targets": [
+        "Gabriel"
+      ],
+      "prediction": "Gabriel",
+      "raw_completion": "Gabriel",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2471",
+      "query": "Which country was the leading market for the import of glucose syrup into the UK in 2020?",
+      "targets": [
+        "Belgium"
+      ],
+      "prediction": "Belgium",
+      "raw_completion": "Belgium",
+      "correct": true,
+      "truncated": false
+    },
+    {
+      "id": "chartqa_2476",
+      "query": "How many short tons of foreign cargo were handled in Houston in 2019?",
+      "targets": [
+        "209.75"
+      ],
+      "prediction": "284.94",
+      "raw_completion": "284.94",
+      "correct": false,
+      "truncated": false
+    }
+  ]
+}

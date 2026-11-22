@@ -69,10 +69,23 @@ def load_looped_checkpoint(
         wrapped.eval()
 
     model = LoopedQwen3_5ForConditionalGeneration(base_model=wrapped, loop_config=loop_cfg)
-    with torch.no_grad():
-        model.reinject_logit.copy_(loop_state["reinject_logit"].to(device=device, dtype=torch.float32))
+    model.restore_loop_state(loop_state, device)
     model.eval()
     return model, processor
+
+
+def crop_zoom_panel(image: Image.Image, panel: str) -> Image.Image:
+    """Active Chart Zoom helper (DeepEyes-style): crop a 2x2 dashboard quadrant at 2x resolution."""
+    w, h = image.size
+    boxes = {
+        "top_left": (0, int(h * 0.12), w // 2, int(h * 0.58)),
+        "top_right": (w // 2, int(h * 0.12), w, int(h * 0.58)),
+        "bottom_left": (0, int(h * 0.52), w // 2, h),
+        "bottom_right": (w // 2, int(h * 0.52), w, h),
+    }
+    box = boxes.get(panel, (0, 0, w, h))
+    cropped = image.crop(box)
+    return cropped.resize((cropped.width * 2, cropped.height * 2), Image.Resampling.LANCZOS)
 
 
 def split_thinking_and_answer(decoded: str) -> tuple[str, str]:
@@ -109,6 +122,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=64,
         help="Recent bf16 token window before flushing into bit-packed TurboQuant store",
     )
+    parser.add_argument(
+        "--protect-vision-prefix",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Keep sink tokens and visual patch tokens in native bf16 under TurboQuant (default: True)",
+    )
+    parser.add_argument("--sink-tokens", type=int, default=4, help="Number of initial sink tokens kept in bf16")
     parser.add_argument("--max-new-tokens", type=int, default=160, help="Maximum tokens to generate")
     parser.add_argument("--do-sample", action="store_true", help="Enable sampling (default: greedy)")
     parser.add_argument("--temperature", type=float, default=0.6, help="Sampling temperature")
@@ -170,6 +190,8 @@ def main(argv: list[str] | None = None) -> int:
             use_cache=True,
             kv_quant=args.kv_quant,
             residual_window=args.residual_window,
+            protect_vision_prefix=args.protect_vision_prefix,
+            sink_tokens=args.sink_tokens,
             do_sample=args.do_sample,
             temperature=args.temperature,
             top_p=args.top_p,

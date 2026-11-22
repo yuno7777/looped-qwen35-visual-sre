@@ -334,39 +334,60 @@ class TurboQuantCompressor:
 
 
 class TurboQuantLayer(CacheLayerMixin):
-    """Drop-in replacement for `DynamicLayer` storing older tokens in bit-packed TurboQuant format."""
+    """Drop-in replacement for `DynamicLayer` storing older tokens in bit-packed TurboQuant format.
+
+    When `protect_vision_prefix=True`, sink tokens (`0..sink_tokens-1`) and all visual patch
+    tokens (flagged via `set_prefill_protected_mask`) are kept permanently in native `bf16`
+    while non-protected text / `<think>` / decode tokens past `residual_window` are compressed.
+    """
 
     is_sliding = False
     is_croppable = False
 
-    def __init__(self, compressor: TurboQuantCompressor, residual_window: int = 64) -> None:
+    def __init__(
+        self,
+        compressor: TurboQuantCompressor,
+        residual_window: int = 64,
+        protect_vision_prefix: bool = True,
+    ) -> None:
         super().__init__()
         self.compressor = compressor
         self.residual_window = max(0, int(residual_window))
+        self.protect_vision_prefix = bool(protect_vision_prefix)
+
         self.compressed_keys: CompressedKeys | None = None
         self.compressed_values: CompressedValues | None = None
         self.recent_keys: torch.Tensor | None = None
         self.recent_values: torch.Tensor | None = None
+
+        # Protected bf16 sink + vision prefix state (set on prefill)
+        self._prefill_protected_mask: torch.Tensor | None = None
+        self.protected_keys: torch.Tensor | None = None
+        self.protected_values: torch.Tensor | None = None
+        self.protected_positions: torch.Tensor | None = None
+        self.prefill_unprotected_positions: torch.Tensor | None = None
+        self.prefill_len: int = 0
+
         self.is_initialized = False
+
+    def set_prefill_protected_mask(self, mask: torch.Tensor | None) -> None:
+        """Register a 1D boolean mask `(prefill_seq_len,)` of positions to protect in bf16."""
+        self._prefill_protected_mask = mask
 
     def lazy_initialization(self, key_states: torch.Tensor, value_states: torch.Tensor) -> None:
         self.device = key_states.device
         self.is_initialized = True
 
-    def update(
-        self, key_states: torch.Tensor, value_states: torch.Tensor, *args: Any, **kwargs: Any
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        if not self.is_initialized:
-            self.lazy_initialization(key_states, value_states)
-
+    def _append_unprotected(self, k_new: torch.Tensor, v_new: torch.Tensor) -> None:
+        if k_new.shape[-2] == 0:
+            return
         if self.recent_keys is None:
-            self.recent_keys = key_states
-            self.recent_values = value_states
+            self.recent_keys = k_new.contiguous()
+            self.recent_values = v_new.contiguous()
         else:
-            self.recent_keys = torch.cat([self.recent_keys, key_states], dim=-2)
-            self.recent_values = torch.cat([self.recent_values, value_states], dim=-2)
+            self.recent_keys = torch.cat([self.recent_keys, k_new], dim=-2)
+            self.recent_values = torch.cat([self.recent_values, v_new], dim=-2)
 
-        # Flush older tokens beyond residual_window into the bit-packed TurboQuant store
         if self.recent_keys.shape[-2] > self.residual_window:
             if self.residual_window > 0:
                 k_flush = self.recent_keys[:, :, : -self.residual_window, :]
@@ -388,20 +409,82 @@ class TurboQuantLayer(CacheLayerMixin):
                 new_cv if self.compressed_values is None else CompressedValues.concat(self.compressed_values, new_cv)
             )
 
-        # Reconstruct full (K, V) for attention computation
+    def _reconstruct_unprotected(self) -> tuple[torch.Tensor | None, torch.Tensor | None]:
         if self.compressed_keys is not None:
-            k_full = self.compressor.dequantize_keys(self.compressed_keys)
-            v_full = self.compressor.dequantize_values(self.compressed_values)
+            k_unprot = self.compressor.dequantize_keys(self.compressed_keys)
+            v_unprot = self.compressor.dequantize_values(self.compressed_values)
             if self.recent_keys is not None:
-                k_full = torch.cat([k_full, self.recent_keys], dim=-2)
-                v_full = torch.cat([v_full, self.recent_values], dim=-2)
-            return k_full, v_full
-
-        assert self.recent_keys is not None and self.recent_values is not None
+                k_unprot = torch.cat([k_unprot, self.recent_keys], dim=-2)
+                v_unprot = torch.cat([v_unprot, self.recent_values], dim=-2)
+            return k_unprot, v_unprot
         return self.recent_keys, self.recent_values
+
+    def update(
+        self, key_states: torch.Tensor, value_states: torch.Tensor, *args: Any, **kwargs: Any
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        is_prefill = not self.is_initialized
+        if is_prefill:
+            self.lazy_initialization(key_states, value_states)
+
+        seq_len = int(key_states.shape[-2])
+        if (
+            is_prefill
+            and self.protect_vision_prefix
+            and self._prefill_protected_mask is not None
+            and int(self._prefill_protected_mask.numel()) == seq_len
+            and bool(self._prefill_protected_mask.any().item())
+        ):
+            mask = self._prefill_protected_mask.to(device=key_states.device, dtype=torch.bool)
+            self.prefill_len = seq_len
+            self.protected_positions = mask.nonzero(as_tuple=False).squeeze(-1)
+            self.prefill_unprotected_positions = (~mask).nonzero(as_tuple=False).squeeze(-1)
+            self.protected_keys = key_states[:, :, self.protected_positions, :].contiguous()
+            self.protected_values = value_states[:, :, self.protected_positions, :].contiguous()
+            if self.prefill_unprotected_positions.numel() > 0:
+                self._append_unprotected(
+                    key_states[:, :, self.prefill_unprotected_positions, :],
+                    value_states[:, :, self.prefill_unprotected_positions, :],
+                )
+            self._prefill_protected_mask = None
+        else:
+            self._append_unprotected(key_states, value_states)
+
+        k_unprot, v_unprot = self._reconstruct_unprotected()
+
+        # Reconstruct exact original sequence order when protected prefill slots exist
+        if self.protected_keys is not None and self.protected_positions is not None:
+            bs, heads, _, head_dim = self.protected_keys.shape
+            k_prefill = torch.empty(
+                (bs, heads, self.prefill_len, head_dim),
+                dtype=self.protected_keys.dtype,
+                device=self.protected_keys.device,
+            )
+            v_prefill = torch.empty_like(k_prefill)
+            k_prefill[:, :, self.protected_positions, :] = self.protected_keys
+            v_prefill[:, :, self.protected_positions, :] = self.protected_values
+
+            n_unprot_prefill = (
+                int(self.prefill_unprotected_positions.numel())
+                if self.prefill_unprotected_positions is not None
+                else 0
+            )
+            if n_unprot_prefill > 0 and k_unprot is not None and v_unprot is not None:
+                k_prefill[:, :, self.prefill_unprotected_positions, :] = k_unprot[:, :, :n_unprot_prefill, :]
+                v_prefill[:, :, self.prefill_unprotected_positions, :] = v_unprot[:, :, :n_unprot_prefill, :]
+
+            if k_unprot is not None and v_unprot is not None and k_unprot.shape[-2] > n_unprot_prefill:
+                k_full = torch.cat([k_prefill, k_unprot[:, :, n_unprot_prefill:, :]], dim=-2)
+                v_full = torch.cat([v_prefill, v_unprot[:, :, n_unprot_prefill:, :]], dim=-2)
+                return k_full, v_full
+            return k_prefill, v_prefill
+
+        assert k_unprot is not None and v_unprot is not None
+        return k_unprot, v_unprot
 
     def get_seq_length(self) -> int:
         total = 0
+        if self.protected_keys is not None:
+            total += int(self.protected_keys.shape[-2])
         if self.compressed_keys is not None:
             total += self.compressed_keys.seq_len
         if self.recent_keys is not None:
@@ -419,16 +502,39 @@ class TurboQuantLayer(CacheLayerMixin):
         self.compressed_values = None
         self.recent_keys = None
         self.recent_values = None
+        self._prefill_protected_mask = None
+        self.protected_keys = None
+        self.protected_values = None
+        self.protected_positions = None
+        self.prefill_unprotected_positions = None
+        self.prefill_len = 0
         self.is_initialized = False
         super().reset()
 
-    def memory_bytes(self) -> int:
-        total = TurboQuantCompressor.memory_bytes(self.compressed_keys, self.compressed_values)
+    def memory_breakdown(self) -> dict[str, int]:
+        protected_bytes = 0
+        if self.protected_keys is not None:
+            protected_bytes += self.protected_keys.numel() * self.protected_keys.element_size()
+        if self.protected_values is not None:
+            protected_bytes += self.protected_values.numel() * self.protected_values.element_size()
+
+        quantized_bytes = TurboQuantCompressor.memory_bytes(self.compressed_keys, self.compressed_values)
+
+        residual_bytes = 0
         if self.recent_keys is not None:
-            total += self.recent_keys.numel() * self.recent_keys.element_size()
+            residual_bytes += self.recent_keys.numel() * self.recent_keys.element_size()
         if self.recent_values is not None:
-            total += self.recent_values.numel() * self.recent_values.element_size()
-        return total
+            residual_bytes += self.recent_values.numel() * self.recent_values.element_size()
+
+        return {
+            "protected_bf16_bytes": protected_bytes,
+            "quantized_bytes": quantized_bytes,
+            "residual_bf16_bytes": residual_bytes,
+            "total_bytes": protected_bytes + quantized_bytes + residual_bytes,
+        }
+
+    def memory_bytes(self) -> int:
+        return self.memory_breakdown()["total_bytes"]
 
 
 class TurboQuantHybridCache(DynamicCache):
@@ -440,12 +546,16 @@ class TurboQuantHybridCache(DynamicCache):
         compressor: TurboQuantCompressor | None = None,
         bits: int = 3,
         residual_window: int = 64,
+        protect_vision_prefix: bool = True,
+        sink_tokens: int = 4,
         seed: int = 42,
     ) -> None:
         super().__init__(config=config)
         head_dim = getattr(config, "head_dim", None) or (config.hidden_size // config.num_attention_heads)
         self.compressor = compressor or TurboQuantCompressor(head_dim=head_dim, bits=bits, seed=seed)
         self.residual_window = residual_window
+        self.protect_vision_prefix = protect_vision_prefix
+        self.sink_tokens = sink_tokens
 
         # Replace ONLY full-attention DynamicLayer slots; leave all LinearAttentionLayer slots untouched
         for idx, layer in enumerate(self.layers):
@@ -453,24 +563,41 @@ class TurboQuantHybridCache(DynamicCache):
                 self.layers[idx] = TurboQuantLayer(
                     compressor=self.compressor,
                     residual_window=residual_window,
+                    protect_vision_prefix=protect_vision_prefix,
                 )
+
+    def set_prefill_protected_mask(self, mask: torch.Tensor | None) -> None:
+        for layer in self.layers:
+            if isinstance(layer, TurboQuantLayer):
+                layer.set_prefill_protected_mask(mask)
 
 
 def measure_hybrid_cache_bytes(cache: DynamicCache) -> dict[str, int]:
-    """Measure exact allocated tensor bytes separately for Attention KV layers vs DeltaNet layers."""
+    """Measure exact allocated tensor bytes split by protected/quantized/residual Attention KV vs DeltaNet."""
+    protected_bytes = 0
+    quantized_bytes = 0
+    residual_bytes = 0
     attention_bytes = 0
     deltanet_bytes = 0
 
     for layer in cache.layers:
         if isinstance(layer, TurboQuantLayer):
-            attention_bytes += layer.memory_bytes()
+            b = layer.memory_breakdown()
+            protected_bytes += b["protected_bf16_bytes"]
+            quantized_bytes += b["quantized_bytes"]
+            residual_bytes += b["residual_bf16_bytes"]
+            attention_bytes += b["total_bytes"]
         elif isinstance(layer, CacheLayerMixin):
             keys = getattr(layer, "keys", None)
             values = getattr(layer, "values", None)
             if isinstance(keys, torch.Tensor):
-                attention_bytes += keys.numel() * keys.element_size()
+                sz = keys.numel() * keys.element_size()
+                attention_bytes += sz
+                residual_bytes += sz
             if isinstance(values, torch.Tensor):
-                attention_bytes += values.numel() * values.element_size()
+                sz = values.numel() * values.element_size()
+                attention_bytes += sz
+                residual_bytes += sz
         elif isinstance(layer, LinearAttentionLayer):
             for state_dict in (getattr(layer, "conv_states", None), getattr(layer, "recurrent_states", None)):
                 if isinstance(state_dict, dict):
@@ -484,6 +611,10 @@ def measure_hybrid_cache_bytes(cache: DynamicCache) -> dict[str, int]:
 
     return {
         "attention_kv_bytes": attention_bytes,
+        "protected_bf16_bytes": protected_bytes,
+        "quantized_bytes": quantized_bytes,
+        "residual_bf16_bytes": residual_bytes,
         "deltanet_state_bytes": deltanet_bytes,
+        "deltanet_bytes": deltanet_bytes,
         "total_bytes": attention_bytes + deltanet_bytes,
     }

@@ -444,8 +444,102 @@ def build_pdf() -> Path:
             "Finally, I merged the winning GRPO LoRA adapter cleanly into the base weights (cosine similarity <code>0.999743</code>, "
             "<code>100.0%</code> argmax match) and verified full scaling readiness for <b>Qwen/Qwen3.5-2B</b> (identical 24-layer "
             "18 DeltaNet + 6 Gated Attention layout, <code>head_dim=256</code>, 12/12 LoRA target match with 0 vision overlap, plus "
-            "optional <code>--load-in-4bit</code> QLoRA support). Building everything end-to-end on one 8 GB laptop GPU proved that "
-            "thoughtful architecture, clean pure-PyTorch RLVR, and disciplined evaluation beat throwing raw compute at a problem."
+            "optional <code>--load-in-4bit</code> QLoRA support)."
+        )
+    )
+    story.append(Spacer(1, 8))
+
+    # ------------------------------------------------------------------
+    # SECTION 6: v2.0 UPGRADE & 3-TIER GENERALIZATION GAUNTLET
+    # ------------------------------------------------------------------
+    sec6_heading = P("6. v2.0: The 3-Tier Generalization Gauntlet, ETD+ARLoop &amp; Dr. GRPO/DAPO", h2_style)
+    story.append(sec6_heading)
+    story.append(
+        P(
+            "After shipping v1, I wanted to stress-test whether a 0.8B model was genuinely generalizing or just memorizing dark-mode "
+            "Grafana layouts. I built a deterministic 3-tier gauntlet (<b>Tier 1:</b> 50 unseen OOD dashboards with light-mode themes, "
+            "zero-hint pixel-only prompts, and adversarial text-vs-pixel Conflict Traps; <b>Tier 2:</b> 50 public <code>ChartQA</code> "
+            "charts; <b>Tier 3:</b> 50 public <code>BFCL v3</code> tool-calling prompts) and shipped three v2.0 upgrades:"
+        )
+    )
+    story.append(
+        P(
+            "<b>1. Vision-Prefix-Exempt TurboQuant:</b> Pinning the 4 attention sink tokens and all visual patch tokens permanently in "
+            "native <code>bf16</code> inside <code>TurboQuantLayer</code> recovered <b>+10.0 points</b> on v1 Tier 1 OOD under 4-bit "
+            "TurboQuant (<b>62.0% to 72.0%</b>, matching <code>bf16</code> at <b>85.0%</b> on Visual Shift), while confirming 3-bit "
+            "remains noisy for sub-1B multimodal keys (44.0% to 58.0%).",
+            bullet_style,
+        )
+    )
+    story.append(
+        P(
+            "<b>2. ETD Middle-Stack Looping + ARLoop Depth-Attention:</b> Instead of looping all 24 layers, v2 runs layers 0..3 once, "
+            "loops core layers 4..19 with isolated per-loop caches and an RMSNorm <code>ARLoopDepthGate</code> over "
+            "<code>[E_enc, h^(t-1), h^(t)]</code>, and decodes layers 20..23 once. This trims 2-loop DeltaNet state from 37.69 MB to "
+            "<b>31.41 MB</b> and brings 2-loop inference latency down to <b>13.70 s/prompt (9.68 tok/s)</b>.",
+            bullet_style,
+        )
+    )
+    story.append(
+        P(
+            "<b>3. Dr. GRPO + DAPO Clip-Higher + Refusal/Zoom Data:</b> Adding 12 negative/no-tool refusal traces and 8 multi-turn "
+            "<code>crop_zoom</code> traces (54 SFT rows total, 0 overlap) and upgrading RLVR to variance-unnormalized Dr. GRPO with "
+            "asymmetric DAPO bounds (<code>[-0.20, +0.28]</code>, <b>3.36 GB peak VRAM</b>) lifted <b>BFCL v3</b> from 68.0% to "
+            "<b>74.0%</b> (+26.0 pts over Stock, with Irrelevance jumping from 60.0% to <b>73.3%</b>) and recovered <b>ChartQA</b> "
+            "from 70.0% to <b>72.0%</b>. On Tier 1 OOD SRE, v1 still leads overall (80.0% vs. 66.0%) because v2's refusal training "
+            "made it cautiously abstain on 8 of its 17 OOD misses, while a v1 loop-depth sweep (<code>L=1, 2, 3</code>) proved latent "
+            "depth pays off specifically on adversarial Conflict Traps (<b>60.0% at L=1 to 66.7% at L=2, 3</b>).",
+            bullet_style,
+        )
+    )
+    story.append(Spacer(1, 6))
+
+    v2_table_data = [
+        ["Model / Configuration", "OOD All", "Vis-Shift", "Conflict", "ChartQA", "BFCL All", "BFCL Irrel."],
+        ["Stock Qwen3.5-0.8B (1-Loop)", "0.0%", "0.0%", "0.0%", "80.0%", "48.0%", "100.0%"],
+        ["v1 Merged (2-Loop, bf16)", "80.0%", "85.0%", "66.7%", "70.0%", "68.0%", "60.0%"],
+        ["v1 Merged (Naive TQ 4-bit)", "62.0%", "60.0%", "60.0%", "-", "-", "-"],
+        ["v1 Merged (TQ 4-bit Vis-Exempt)", "72.0%", "85.0%", "53.3%", "-", "-", "-"],
+        ["v2 ETD+ARLoop (2-Loop, bf16)", "66.0%", "70.0%", "60.0%", "72.0%", "74.0%", "73.3%"],
+        ["v2 ETD+ARLoop (TQ 4-bit Vis-Ex.)", "62.0%", "75.0%", "53.3%", "-", "-", "-"],
+    ]
+    v2_tbl = Table(
+        v2_table_data,
+        colWidths=[2.32 * inch, 0.72 * inch, 0.78 * inch, 0.75 * inch, 0.80 * inch, 0.80 * inch, 0.83 * inch],
+    )
+    v2_tbl.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), NAVY),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8.0),
+                ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+                ("ALIGN", (0, 0), (0, -1), "LEFT"),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_BG]),
+                ("BACKGROUND", (0, 2), (-1, 2), colors.HexColor("#ECFDF5")),
+                ("BACKGROUND", (0, 5), (-1, 5), colors.HexColor("#EEF2FF")),
+                ("FONTNAME", (0, 2), (-1, 2), "Helvetica-Bold"),
+                ("FONTNAME", (0, 5), (-1, 5), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
+                ("TOPPADDING", (0, 0), (-1, -1), 4.5),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ]
+        )
+    )
+    story.append(KeepTogether([
+        v2_tbl,
+        P("Table 2: Stock vs. v1 vs. v2 across Tier 1 OOD SRE (50 dashboards), Tier 2 ChartQA (50), and Tier 3 BFCL v3 (50) on RTX 4060 8 GB.", caption_style),
+    ]))
+    story.append(Spacer(1, 6))
+    story.append(
+        P(
+            "Building v1 and v2 end-to-end on one 8 GB laptop GPU proved that thoughtful architecture, honest ablations, and clean "
+            "pure-PyTorch RLVR beat throwing raw compute at a problem. Next up: exploring in-layer Hardware ALU Experts routed via RLVR "
+            "for exact numerical reasoning inside looped blocks."
         )
     )
 
