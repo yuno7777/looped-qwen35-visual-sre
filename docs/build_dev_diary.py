@@ -498,10 +498,10 @@ def build_pdf() -> Path:
         ["Model / Configuration", "OOD All", "Vis-Shift", "Conflict", "ChartQA", "BFCL All", "BFCL Irrel."],
         ["Stock Qwen3.5-0.8B (1-Loop)", "0.0%", "0.0%", "0.0%", "80.0%", "48.0%", "100.0%"],
         ["v1 Merged (2-Loop, bf16)", "80.0%", "85.0%", "66.7%", "70.0%", "68.0%", "60.0%"],
-        ["v1 Merged (Naive TQ 4-bit)", "62.0%", "60.0%", "60.0%", "-", "-", "-"],
-        ["v1 Merged (TQ 4-bit Vis-Exempt)", "72.0%", "85.0%", "53.3%", "-", "-", "-"],
+        ["v1 Merged (Naive TQ 4-bit)", "62.0%", "60.0%", "60.0%", "--", "--", "--"],
+        ["v1 Merged (TQ 4-bit Vis-Exempt)", "72.0%", "85.0%", "53.3%", "--", "--", "--"],
         ["v2 ETD+ARLoop (2-Loop, bf16)", "66.0%", "70.0%", "60.0%", "72.0%", "74.0%", "73.3%"],
-        ["v2 ETD+ARLoop (TQ 4-bit Vis-Ex.)", "62.0%", "75.0%", "53.3%", "-", "-", "-"],
+        ["v2 ETD+ARLoop (TQ 4-bit Vis-Ex.)", "62.0%", "75.0%", "53.3%", "--", "--", "--"],
     ]
     v2_tbl = Table(
         v2_table_data,

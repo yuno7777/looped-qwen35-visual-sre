@@ -56,7 +56,7 @@ and Hybrid-Safe TurboQuant on Consumer Hardware}\\[0.55em]
 % ----------------------------------------------------------------------
 \begin{abstract}
 \noindent
-Small multimodal language models (under 1B parameters) are attractive for local Site Reliability Engineering (SRE) automation, yet stock checkpoints frequently suffer from catastrophic reasoning-loop collapse when tasked with visual telemetry triage and strict JSON tool calling. We present a non-destructive \textbf{Looped Hybrid Transformer} wrapper around \texttt{Qwen/Qwen3.5-0.8B} (18 Gated DeltaNet recurrent layers and 6 Gated Attention layers) trained and evaluated end-to-end on a single consumer 8.00\,GB NVIDIA RTX 4060 Laptop GPU. Our architecture introduces learnable scalar input re-injection after native vision-patch merging, isolated per-loop hybrid KV/recurrent caches (\texttt{PerLoopHybridCache}), and an auxiliary middle-loop cross-entropy objective. On a strictly isolated 15-prompt Visual SRE held-out benchmark featuring dark-mode 2$\times$2 Grafana telemetry dashboards and 5 deterministic operations tools, stock \texttt{Qwen3.5-0.8B} achieves \textbf{0.0\%} tool accuracy with \textbf{100.0\%} \texttt{<think>} truncation. Looped PEFT LoRA SFT distilled from 34 DeepSeek Chain-of-Thought and multi-turn error-recovery traces lifts held-out tool accuracy to \textbf{73.3\%} (0.0\% truncation) while making Loop~2 loss (0.8897) outperform Loop~1 (0.9562). A pure-PyTorch Group Relative Policy Optimization (GRPO) stage using a shared-base frozen reference adapter ($\approx$21\,MB overhead, 3.37\,GB peak VRAM) further raises held-out accuracy to \textbf{86.7\%} (13/15, mean reward $+0.8667$). We additionally evaluate reversible Weight-Space Programming (WSP) directional ablation on MLP \texttt{down\_proj} layers (validating its rollback guardrail once RLVR resolves looping) and introduce \texttt{TurboQuantHybridCache}, which compresses the 6 Gated Attention KV caches by \textbf{4.58$\times$} at 3-bit and \textbf{3.59$\times$} at 4-bit while leaving all 18 Gated DeltaNet states untouched, uncovering an important multimodal visual-patch quantization trade-off.
+Small multimodal language models (under 1B parameters) are attractive for local Site Reliability Engineering (SRE) automation, yet stock checkpoints frequently suffer from catastrophic reasoning-loop collapse when tasked with visual telemetry triage and strict JSON tool calling. We present a non-destructive \textbf{Looped Hybrid Transformer} wrapper around \texttt{Qwen/Qwen3.5-0.8B} (18 Gated DeltaNet recurrent layers and 6 Gated Attention layers) trained and evaluated end-to-end on a single consumer 8.00\,GB NVIDIA RTX 4060 Laptop GPU. Our architecture introduces learnable scalar input re-injection after native vision-patch merging, isolated per-loop hybrid KV/recurrent caches (\texttt{PerLoopHybridCache}), and an auxiliary middle-loop cross-entropy objective. On a strictly isolated 15-prompt Visual SRE held-out benchmark featuring dark-mode 2$\times$2 Grafana telemetry dashboards and 5 deterministic operations tools, stock \texttt{Qwen3.5-0.8B} achieves \textbf{0.0\%} tool accuracy with \textbf{100.0\%} \texttt{<think>} truncation. Looped PEFT LoRA SFT distilled from 34 DeepSeek Chain-of-Thought and multi-turn error-recovery traces lifts held-out tool accuracy to \textbf{73.3\%} (0.0\% truncation) while making Loop~2 loss (0.8897) outperform Loop~1 (0.9562). A pure-PyTorch Group Relative Policy Optimization (GRPO) stage using a shared-base frozen reference adapter ($\approx$21\,MB overhead, 3.37\,GB peak VRAM) further raises held-out accuracy to \textbf{86.7\%} (13/15, mean reward $+0.8667$). We additionally evaluate reversible Weight-Space Programming (WSP) directional ablation on MLP \texttt{down\_proj} layers (validating its rollback guardrail once RLVR resolves looping) and introduce \texttt{TurboQuantHybridCache}, which compresses the 6 Gated Attention KV caches by \textbf{4.58$\times$} at 3-bit and \textbf{3.59$\times$} at 4-bit while leaving all 18 Gated DeltaNet states untouched, uncovering an important multimodal visual-patch quantization trade-off. In a 3-tier generalization gauntlet spanning 50 unseen out-of-distribution (OOD) dashboards, 50 \texttt{ChartQA} charts, and 50 \texttt{BFCL v3} tool-calling prompts, our v1 checkpoint reaches \textbf{80.0\%} OOD accuracy while Vision-Prefix-Exempt 4-bit TurboQuant recovers \textbf{+10.0 points} over naive 4-bit quantization (62.0\% to 72.0\%). Finally, our v2 architecture combining Encode-Think-Decode (ETD) middle-stack looping, \texttt{ARLoop} depth-attention residuals, and Dr. GRPO with DAPO Clip-Higher lifts \texttt{BFCL v3} accuracy to \textbf{74.0\%} (+26.0 points over stock, +6.0 over v1) and recovers \texttt{ChartQA} to \textbf{72.0\%} at 13.70\,s/prompt.
 \end{abstract}
 
 % ----------------------------------------------------------------------
@@ -73,6 +73,7 @@ In this work, we investigate whether test-time depth via weight-tied looping \ci
     \item \textbf{Visual SRE Benchmark \& Leakage-Proof Distillation:} A synthetic dark-mode Grafana benchmark (50 balanced scenarios across 5 deterministic SRE tools, 40 multimodal + 10 text alerts) with SHA-256 verified zero-overlap splits (35 train / 15 held-out) and DeepSeek CoT + 25\% multi-turn error-recovery harvesting.
     \item \textbf{8\,GB Pure-PyTorch SFT \& GRPO Pipeline:} Assistant-only masked LoRA SFT targeting all 12 text-decoder linear projections (10.82M trainable parameters, 1.25\%) followed by pure-PyTorch GRPO using a shared-base frozen reference adapter ($\approx$21\,MB overhead, 3.37\,GB peak VRAM), lifting held-out accuracy from 0.0\% to 73.3\% (SFT) to 86.7\% (GRPO).
     \item \textbf{Surgical WSP Audit \& Hybrid-Safe TurboQuant:} Reversible MLP \texttt{down\_proj} directional ablation with a strict held-out rollback guardrail, plus \texttt{TurboQuantHybridCache} achieving 4.58$\times$ Attention KV compression at 3-bit while revealing a key accuracy-vs-compression trade-off on dense visual patch tokens.
+    \item \textbf{v2.0 Upgrades \& 3-Tier Generalization Gauntlet:} Vision-Prefix-Exempt 4-bit TurboQuant (+10.0\,pts OOD recovery), ETD middle-stack looping with \texttt{ARLoop} depth-attention residuals, and Dr. GRPO/DAPO with refusal and active zoom traces, evaluated across 50 unseen OOD dashboards (80.0\% v1), 50 \texttt{ChartQA} charts (72.0\% v2), and 50 \texttt{BFCL v3} prompts (74.0\% v2, +26.0\,pts over stock).
 \end{enumerate}
 
 % ----------------------------------------------------------------------
@@ -242,7 +243,7 @@ v2 ETD+ARLoop (TQ 3-bit Vis-Ex.) & \texttt{tq\_3bit} & Yes & 54.0\% & 60.0\% & 4
 
 \begin{table}[t]
 \centering
-\caption{Loop-depth sweep on Tier 1 OOD (\texttt{v1 Merged}, \texttt{bf16}). Latent depth specifically improves the hardest Conflict Trap split (+6.7\,pts at $L \ge 2$).}
+\caption{Loop-depth sweep on Tier 1 OOD (\texttt{v1 Merged}, \texttt{bf16}). Latent depth specifically improves the hardest Conflict Trap split (+6.7\,pts at $L \ge 2$). *Predictions for $L=2$ were reused from the Tier 1 OOD run prior to per-sample token logging.}
 \label{tab:loop_sweep}
 \small
 \begin{tabular}{@{}cccccc@{}}
@@ -250,7 +251,7 @@ v2 ETD+ARLoop (TQ 3-bit Vis-Ex.) & \texttt{tq\_3bit} & Yes & 54.0\% & 60.0\% & 4
 \textbf{Loops} & \textbf{OOD All} & \textbf{Vis. Shift} & \textbf{Pixel-Only} & \textbf{Conflict} & \textbf{Speed / VRAM} \\
 \midrule
 $L=1$ & 80.0\% & 90.0\% & 86.7\% & 60.0\% & 16.31 tok/s / 2.02\,GB \\
-$L=2$ & 80.0\% & 85.0\% & 86.7\% & \textbf{66.7\%} & cached / 2.10\,GB \\
+$L=2$ & 80.0\% & 85.0\% & 86.7\% & \textbf{66.7\%} & n/a* / 2.10\,GB \\
 $L=3$ & 80.0\% & 90.0\% & 80.0\% & \textbf{66.7\%} & 6.12 tok/s / 2.19\,GB \\
 \bottomrule
 \end{tabular}
@@ -291,13 +292,13 @@ A. Zandieh, M. Daliri, M. Hadian, and V. Mirrokni. \textit{TurboQuant: Online Ve
 MIT CSAIL. \textit{Weight-Space Programming: Surgical Directional Ablation of Localized Reasoning Loops in Small Language Models}. 2026.
 
 \bibitem{arloop}
-ARLoop Authors. \textit{ARLoop: Depth-Attention Residuals for Stable Recurrent and Looped Transformers}. arXiv:2611.05234, 2026.
+Y. Yao, Y. Du, D. Zhu, and H. Sun. \textit{ARLoop: Fully-Open Pre-trained Looped Transformers with Attention Residuals}. arXiv:2611.05234, 2026.
 
 \bibitem{dapo}
 Q. Yu, Z. Zhang, R. Zhu, Y. Yuan, X. Zuo, Y. Yue, T. Fan, G. Liu, L. Liu, X. Liu, H. Lin, Z. Lin, B. Ma, G. Sheng, Y. Tong, C. Zhang, M. Zhang, W. Zhang, H. Zhu, J. Zhu, J. Chen, J. Chen, C. Wang, H. Yu, W. Dai, Y. Song, X. Wei, H. Zhou, J. Liu, W.-Y. Ma, Y.-Q. Zhang, L. Yan, M. Qiao, Y. Wu, and M. Wang. \textit{DAPO: An Open-Source LLM Reinforcement Learning System at Scale}. arXiv:2503.14476, 2025.
 
 \bibitem{omnikvquant}
-OmniKVQuant Authors. \textit{OmniKVQuant: Modality-Aware KV-Cache Quantization for Vision-Language Models}. arXiv:2609.11582, 2026.
+S. Yoo, H. Ok, J. Choi, J. Jung, and J. S. Chung. \textit{OmniKVQuant: KV Cache Quantization for Omni-LLMs}. arXiv:2609.11582, 2026.
 \end{thebibliography}
 
 \end{document}
