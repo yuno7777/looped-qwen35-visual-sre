@@ -23,6 +23,9 @@
   <a href="HARD_BENCHMARK_RESULTS.md">
     <img src="https://img.shields.io/badge/3--Tier_Benchmarks-Stock_vs._v1_vs._v2-0A0A0A?style=for-the-badge&labelColor=0A0A0A&color=7C3AED" alt="3-Tier Benchmarks" />
   </a>
+  <a href="https://orcid.org/0009-0003-4847-3288">
+    <img src="https://img.shields.io/badge/ORCID-0009--0003--4847--3288-0A0A0A?style=for-the-badge&logo=orcid&logoColor=A6CE39&labelColor=0A0A0A&color=7C3AED" alt="ORCID" />
+  </a>
 </p>
 
 </div>
@@ -256,5 +259,5 @@ python looped_qwen35/hard_benchmark.py --include-v2 --include-loop-sweep --resum
 ---
 
 <div align="center">
-  <sub>Abhishek Satarkar | November 2026</sub>
+  <sub>Abhishek Satarkar | November 2026 | <a href="https://orcid.org/0009-0003-4847-3288">ORCID: 0009-0003-4847-3288</a> | <a href="https://github.com/yuno7777/looped-qwen35-visual-sre">GitHub</a></sub>
 </div>

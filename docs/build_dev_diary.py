@@ -195,7 +195,14 @@ def build_pdf() -> Path:
             subtitle_style,
         )
     )
-    story.append(P("By <b>Abhishek Satarkar</b> (Independent)  |  November 2026  |  Hardware: NVIDIA RTX 4060 Laptop GPU (8.00 GB VRAM)", meta_style))
+    story.append(
+        P(
+            "By <b>Abhishek Satarkar</b> (Independent)  |  November 2026  |  Hardware: NVIDIA RTX 4060 Laptop GPU (8.00 GB VRAM)<br/>"
+            "ORCID: <a href='https://orcid.org/0009-0003-4847-3288' color='#1D4ED8'>https://orcid.org/0009-0003-4847-3288</a>  |  "
+            "Code: <a href='https://github.com/yuno7777/looped-qwen35-visual-sre' color='#1D4ED8'>https://github.com/yuno7777/looped-qwen35-visual-sre</a>",
+            meta_style,
+        )
+    )
     story.append(HRFlowable(width="100%", thickness=1.0, color=BLUE, spaceAfter=10))
 
     # Hero KPI strip
