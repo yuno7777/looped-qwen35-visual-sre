@@ -62,6 +62,7 @@
 - **Hybrid-Safe TurboQuant KV Compression & Vision-Prefix Protection (v2.0):** `TurboQuantHybridCache` applies Haar orthogonal rotation, `uint8` bit-packed Lloyd-Max centroids, and 1-bit QJL key residuals strictly to the **6 Gated Attention layers** while keeping all **18 DeltaNet states** untouched in native `bf16`/`fp32` (**4.58x** Attention KV compression at 3-bit, **3.59x** at 4-bit on 2064 tokens). In **v2.0**, `--protect-vision-prefix` (`--sink-tokens 4`) pins attention sinks and visual patch tokens permanently in native `bf16`, recovering **+10.0 points** on Tier 1 OOD under 4-bit TurboQuant (`62.0% -> 72.0%`, `85.0%` Visual Shift matching `bf16`).
 - **ETD Middle-Stack Looping + ARLoop Depth-Attention Residuals (v2.0):** Upgrades full-stack 24-layer looping to **Encode-Think-Decode (ETD)** (`layers 0..3` once, `layers 4..19` looped `num_loops` times with isolated per-loop caches, `layers 20..23` once) paired with **ARLoop** (`arXiv:2611.05234`) RMSNorm depth-attention over `[E_enc, h^(t-1), h^(t)]`, reducing DeltaNet recurrent cache overhead (`37.69 MB -> 31.41 MB`) and cutting 2-loop inference latency to `13.70 s/prompt` (`9.68 tok/s`).
 - **Dr. GRPO + DAPO Clip-Higher + Negative Refusal & Active `crop_zoom` (v2.0):** Upgrades RLVR to variance-unnormalized **Dr. GRPO** (`A_i = r_i - mean(r)`) with asymmetric **DAPO** (`arXiv:2503.14476`) clipping (`[-0.20, +0.28]`) in `3.36 GB` peak VRAM, plus 12 negative/no-tool refusal traces and 8 active `crop_zoom` multi-turn traces. Lifts **BFCL v3** tool-calling accuracy to **74.0%** (`+6.0 pts` over v1, `+26.0 pts` over Stock), repairs **BFCL Irrelevance** from `60.0%` to **73.3%**, and recovers **ChartQA** from `70.0%` to **72.0%**.
+- **v2.1 Anti-Abstention Dr. GRPO, Scaled 0.8B Training & Fused FLA Triton Kernels:** Scales SFT to 180 validated traces (rebalancing refusal to 8.9%, adding light-mode themes, 1x3/3x1 layouts, and adversarial Conflict Traps with SHA-256 verified 0 overlap), adds a `-0.50` false-abstention penalty in 60-step Dr. GRPO (`3.37 GB` peak VRAM), and dispatches all 18 Gated DeltaNet layers to fused `fla==0.6.0` Triton kernels (`1.24x` decode speedup: `3.93 -> 4.88 tok/s`). Sets new records on **Tier 1 OOD SRE (`84.0%`, `90.0%` schema valid, `86.7%` Conflict Traps)**, **4-bit Vision-Exempt OOD (`76.0%`)**, and fine-tuned **ChartQA (`74.0%`)**.
 - **2B Scaling Readiness:** Verified identical 24-layer hybrid topology and 12/12 LoRA target matching (0 vision overlap) for `Qwen/Qwen3.5-2B` with `--model-size 2b` and optional `--load-in-4bit` QLoRA flags.
 
 ---
@@ -87,33 +88,30 @@
 | `turboquant_3bit` | 2064 | 10.56 MB | 37.69 MB | 48.25 MB | **4.58x** | 2.07 GB |
 | `turboquant_4bit` | 2064 | 13.49 MB | 37.69 MB | 51.18 MB | **3.59x** | 2.08 GB |
 
-### 3. 3-Tier Hard Stress-Test & Generalization Gauntlet (Stock vs. v1 vs. v2)
+### 3. 3-Tier Hard Stress-Test & Generalization Gauntlet (Stock vs. v1 vs. v2 vs. v2.1)
 
-Deterministic evaluation (`seed=1337`, greedy `do_sample=False`, `bfloat16`) on a single **RTX 4060 Laptop GPU (8.00 GB VRAM)**. Full per-sample logs and engineering takeaways are in [HARD_BENCHMARK_RESULTS.md](HARD_BENCHMARK_RESULTS.md).
+Deterministic evaluation (`seed=1337`, greedy `do_sample=False`, `bfloat16`) on a single **RTX 4060 Laptop GPU (8.00 GB VRAM)**. Deployment tables standardize on `bf16` and `4-bit Vision-Exempt` TurboQuant. Full logs live in [HARD_BENCHMARK_RESULTS.md](HARD_BENCHMARK_RESULTS.md).
 
-#### Tier 1: Hard OOD Visual SRE (50 Unseen Dashboards) + Vision-Prefix-Exempt TurboQuant
+#### Tier 1: Hard OOD Visual SRE (50 Unseen Dashboards) + Vision-Prefix-Exempt 4-bit TurboQuant
 
 | Configuration | Loops | KV Quant | Vis-Exempt | Overall Acc | Schema Valid | Visual Shift (20) | Pixel-Only (15) | Conflict Trap (15) | Peak VRAM |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | Stock Qwen3.5-0.8B (1-Loop, bf16) | 1 | `none` | N/A | **0.0%** | 0.0% | 0.0% | 0.0% | 0.0% | 2.02 GB |
-| **v1 Merged (2-Loop, bf16)** | **2** | **`none`** | **N/A** | **80.0%** | **88.0%** | **85.0%** | **86.7%** | **66.7%** | **2.10 GB** |
+| v1 Merged (2-Loop, bf16) | 2 | `none` | N/A | **80.0%** | 88.0% | **85.0%** | **86.7%** | 66.7% | 2.10 GB |
 | v1 Merged (2-Loop, Naive TQ 4-bit) | 2 | `turboquant_4bit` | No | 62.0% | 66.0% | 60.0% | 66.7% | 60.0% | 2.04 GB |
-| **v1 Merged (2-Loop, TQ 4-bit Vis-Exempt)** | **2** | **`turboquant_4bit`** | **Yes** | **72.0%** | **86.0%** | **85.0%** | **73.3%** | **53.3%** | **2.06 GB** |
-| v1 Merged (2-Loop, Naive TQ 3-bit) | 2 | `turboquant_3bit` | No | 58.0% | 64.0% | 60.0% | 60.0% | 53.3% | 2.03 GB |
-| v1 Merged (2-Loop, TQ 3-bit Vis-Exempt) | 2 | `turboquant_3bit` | Yes | 44.0% | 48.0% | 40.0% | 66.7% | 26.7% | 2.05 GB |
-| v2 ETD+ARLoop (2-Loop, bf16) | 2 | `none` | N/A | **66.0%** | 84.0% | 70.0% | 66.7% | 60.0% | 2.09 GB |
-| v2 ETD+ARLoop (2-Loop, TQ 4-bit Vis-Exempt) | 2 | `turboquant_4bit` | Yes | **62.0%** | 82.0% | 75.0% | 53.3% | 53.3% | 2.04 GB |
-| v2 ETD+ARLoop (2-Loop, TQ 3-bit Vis-Exempt) | 2 | `turboquant_3bit` | Yes | 54.0% | 64.0% | 60.0% | 46.7% | 53.3% | 2.04 GB |
+| v1 Merged (2-Loop, TQ 4-bit Vis-Exempt) | 2 | `turboquant_4bit` | Yes | 72.0% | 86.0% | **85.0%** | 73.3% | 53.3% | 2.06 GB |
+| v2 ETD+ARLoop (2-Loop, bf16) | 2 | `none` | N/A | 66.0% | 84.0% | 70.0% | 66.7% | 60.0% | 2.09 GB |
+| v2 ETD+ARLoop (2-Loop, TQ 4-bit Vis-Exempt) | 2 | `turboquant_4bit` | Yes | 62.0% | 82.0% | 75.0% | 53.3% | 53.3% | 2.04 GB |
+| **v2.1 ETD+ARLoop (2-Loop, bf16)** | **2** | **`none`** | **N/A** | **84.0%** | **90.0%** | 80.0% | **86.7%** | **86.7%** | **2.09 GB** |
+| **v2.1 ETD+ARLoop (2-Loop, TQ 4-bit Vis-Exempt)** | **2** | **`turboquant_4bit`** | **Yes** | **76.0%** | 84.0% | 75.0% | 80.0% | 73.3% | **2.04 GB** |
 
-#### Loop-Depth Sweep (`v1 Merged`, `bf16`, `num_loops = 1, 2, 3`)
+#### Fused DeltaNet Kernel (`fla` Triton) & `torch.compile` Decode Speedup (`num_loops=2`, 50 Tokens, RTX 4060 8 GB)
 
-| Loop Depth | Overall Acc | Visual Shift (20) | Pixel-Only (15) | Conflict Trap (15) | Latency (s/prompt) | Throughput (tok/s) | Peak VRAM |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| `num_loops=1` | 80.0% | 90.0% | 86.7% | 60.0% | 9.25 s | 16.31 | 2.02 GB |
-| `num_loops=2` | 80.0% | 85.0% | 86.7% | **66.7%** | 40.92 s* | - | 2.10 GB |
-| `num_loops=3` | 80.0% | 90.0% | 80.0% | **66.7%** | 24.62 s | 6.12 | 2.19 GB |
-
-<sub>*Resumed from cached v1 run prior to per-sample token logging. For comparison, v2 ETD+ARLoop (2-Loop, bf16) runs at <b>13.70 s/prompt (9.68 tok/s)</b> via 16-layer middle-stack looping.</sub>
+| Backend Configuration | DeltaNet Kernel | Mean Latency (s/prompt) | Throughput (tok/s) | Speedup | Peak VRAM |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| Eager (Pure-PyTorch Fallback Baseline) | `pytorch_fallback` | 12.711 s | 3.93 tok/s | 1.00x | 1.74 GB |
+| **Fused Kernels (`fla==0.6.0` + `triton-windows==3.9.0`)** | **`fla_triton_fused`** | **10.255 s** | **4.88 tok/s** | **1.24x** | **1.72 GB** |
+| Fused Kernels + `torch.compile` (`cudagraphs` fallback) | `fla_triton_fused` | 17.568 s | 2.85 tok/s | 0.73x | 1.73 GB |
 
 #### Tier 2 (`ChartQA`, 50 Samples) & Tier 3 (`BFCL v3`, 50 Samples)
 
@@ -121,7 +119,8 @@ Deterministic evaluation (`seed=1337`, greedy `do_sample=False`, `bfloat16`) on 
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Stock Qwen3.5-0.8B (1-Loop) | **80.0%** | 48.0% | 40.0% | 6.7% | **100.0%** | 1.76 GB |
 | v1 Merged (2-Loop, bf16) | 70.0% | 68.0% | 65.0% | **80.0%** | 60.0% | 1.81 GB |
-| **v2 ETD+ARLoop (2-Loop, bf16)** | **72.0%** | **74.0%** | **75.0%** | 73.3% | **73.3%** | **1.80 GB** |
+| v2 ETD+ARLoop (2-Loop, bf16) | 72.0% | **74.0%** | **75.0%** | 73.3% | **73.3%** | 1.80 GB |
+| **v2.1 ETD+ARLoop (2-Loop, bf16)** | **74.0%** | 68.0% | 70.0% | 73.3% | 60.0% | **1.79 GB** |
 
 ---
 

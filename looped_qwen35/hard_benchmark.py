@@ -32,6 +32,7 @@ OOD_PROMPTS_FILE = ROOT / "cot_dataset_builder" / "ood_sre_prompts.jsonl"
 OOD_BASE_DIR = ROOT / "cot_dataset_builder"
 V1_MERGED_DIR = ROOT / "looped_qwen35" / "exports" / "looped_qwen35_sre_final"
 V2_MERGED_DIR = ROOT / "looped_qwen35" / "exports" / "looped_qwen35_sre_v2"
+V2_1_MERGED_DIR = ROOT / "looped_qwen35" / "exports" / "looped_qwen35_sre_v2_1"
 EVAL_RESULTS_DIR = ROOT / "looped_qwen35" / "eval_results"
 OUT_MD = ROOT / "HARD_BENCHMARK_RESULTS.md"
 
@@ -649,7 +650,7 @@ def write_markdown_report(
     t3_results: list[dict[str, Any]],
 ) -> str:
     lines: list[str] = [
-        "# Hard Stress-Test & Generalization Benchmark Results (Stock vs. v1 vs. v2)",
+        "# Hard Stress-Test & Generalization Benchmark Results (Stock vs. v1 vs. v2 vs. v2.1)",
         "",
         "Deterministic evaluation (`seed=1337`, greedy `do_sample=False`, `bfloat16`) on a single **NVIDIA RTX 4060 Laptop GPU (8.00 GB VRAM)**.",
         "",
@@ -730,6 +731,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run Stock vs. v1 vs. v2 3-Tier Hard Benchmark Suite.")
     parser.add_argument("--tiers", type=int, nargs="+", default=[1, 2, 3], choices=[1, 2, 3])
     parser.add_argument("--include-v2", action="store_true", help="Include v2 ETD+ARLoop merged model evaluations")
+    parser.add_argument("--include-v2-1", action="store_true", help="Include v2.1 scaled ETD+ARLoop merged model evaluations")
     parser.add_argument("--include-loop-sweep", action="store_true", help="Include num_loops=1,2,3 sweep on v1")
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--resume", action="store_true")
@@ -754,16 +756,20 @@ def main(argv: list[str] | None = None) -> int:
             ("stock_l1_bf16", "Stock Qwen3.5-0.8B (1-Loop, bf16)", None, 1, "none", 64, False),
             ("merged_l2_bf16", "v1 Merged (2-Loop, bf16)", V1_MERGED_DIR, 2, "none", 64, False),
             ("merged_l2_tq4", "v1 Merged (2-Loop, Naive TQ 4-bit)", V1_MERGED_DIR, 2, "turboquant_4bit", 64, False),
-            ("merged_l2_tq3", "v1 Merged (2-Loop, Naive TQ 3-bit)", V1_MERGED_DIR, 2, "turboquant_3bit", 64, False),
             ("v1_l2_tq4_vis", "v1 Merged (2-Loop, TQ 4-bit Vis-Exempt)", V1_MERGED_DIR, 2, "turboquant_4bit", 64, True),
-            ("v1_l2_tq3_vis", "v1 Merged (2-Loop, TQ 3-bit Vis-Exempt)", V1_MERGED_DIR, 2, "turboquant_3bit", 64, True),
         ]
         if args.include_v2 and V2_MERGED_DIR.exists():
             configs.extend(
                 [
                     ("v2_l2_bf16", "v2 ETD+ARLoop (2-Loop, bf16)", V2_MERGED_DIR, 2, "none", 64, False),
                     ("v2_l2_tq4_vis", "v2 ETD+ARLoop (2-Loop, TQ 4-bit Vis-Exempt)", V2_MERGED_DIR, 2, "turboquant_4bit", 64, True),
-                    ("v2_l2_tq3_vis", "v2 ETD+ARLoop (2-Loop, TQ 3-bit Vis-Exempt)", V2_MERGED_DIR, 2, "turboquant_3bit", 64, True),
+                ]
+            )
+        if args.include_v2_1 and V2_1_MERGED_DIR.exists():
+            configs.extend(
+                [
+                    ("v2_1_l2_bf16", "v2.1 ETD+ARLoop (2-Loop, bf16)", V2_1_MERGED_DIR, 2, "none", 64, False),
+                    ("v2_1_l2_tq4_vis", "v2.1 ETD+ARLoop (2-Loop, TQ 4-bit Vis-Exempt)", V2_1_MERGED_DIR, 2, "turboquant_4bit", 64, True),
                 ]
             )
         for tag, name, ckpt, loops, quant, win, prot in configs:
@@ -795,6 +801,8 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if args.include_v2 and V2_MERGED_DIR.exists():
             cqa_configs.append(("v2_l2_bf16", "v2 ETD+ARLoop (2-Loop, bf16)", V2_MERGED_DIR, 2))
+        if args.include_v2_1 and V2_1_MERGED_DIR.exists():
+            cqa_configs.append(("v2_1_l2_bf16", "v2.1 ETD+ARLoop (2-Loop, bf16)", V2_1_MERGED_DIR, 2))
         for tag, name, ckpt, loops in cqa_configs:
             t2_results.append(run_tier2_config(tag, name, ckpt, loops, cqa_items, device, resume=args.resume))
 
@@ -806,6 +814,8 @@ def main(argv: list[str] | None = None) -> int:
         ]
         if args.include_v2 and V2_MERGED_DIR.exists():
             bfcl_configs.append(("v2_l2_bf16", "v2 ETD+ARLoop (2-Loop, bf16)", V2_MERGED_DIR, 2))
+        if args.include_v2_1 and V2_1_MERGED_DIR.exists():
+            bfcl_configs.append(("v2_1_l2_bf16", "v2.1 ETD+ARLoop (2-Loop, bf16)", V2_1_MERGED_DIR, 2))
         for tag, name, ckpt, loops in bfcl_configs:
             t3_results.append(run_tier3_config(tag, name, ckpt, loops, bfcl_items, device, resume=args.resume))
 

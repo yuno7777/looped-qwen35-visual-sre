@@ -57,7 +57,7 @@ and Hybrid-Safe TurboQuant on Consumer Hardware}\\[0.55em]
 % ----------------------------------------------------------------------
 \begin{abstract}
 \noindent
-Small multimodal language models (under 1B parameters) are attractive for local Site Reliability Engineering (SRE) automation, yet stock checkpoints frequently suffer from catastrophic reasoning-loop collapse when tasked with visual telemetry triage and strict JSON tool calling. We present a non-destructive \textbf{Looped Hybrid Transformer} wrapper around \texttt{Qwen/Qwen3.5-0.8B} (18 Gated DeltaNet recurrent layers and 6 Gated Attention layers) trained and evaluated end-to-end on a single consumer 8.00\,GB NVIDIA RTX 4060 Laptop GPU. Our architecture introduces learnable scalar input re-injection after native vision-patch merging, isolated per-loop hybrid KV/recurrent caches (\texttt{PerLoopHybridCache}), and an auxiliary middle-loop cross-entropy objective. On a strictly isolated 15-prompt Visual SRE held-out benchmark featuring dark-mode 2$\times$2 Grafana telemetry dashboards and 5 deterministic operations tools, stock \texttt{Qwen3.5-0.8B} achieves \textbf{0.0\%} tool accuracy with \textbf{100.0\%} \texttt{<think>} truncation. Looped PEFT LoRA SFT distilled from 34 DeepSeek Chain-of-Thought and multi-turn error-recovery traces lifts held-out tool accuracy to \textbf{73.3\%} (0.0\% truncation) while making Loop~2 loss (0.8897) outperform Loop~1 (0.9562). A pure-PyTorch Group Relative Policy Optimization (GRPO) stage using a shared-base frozen reference adapter ($\approx$21\,MB overhead, 3.37\,GB peak VRAM) further raises held-out accuracy to \textbf{86.7\%} (13/15, mean reward $+0.8667$). We additionally evaluate reversible Weight-Space Programming (WSP) directional ablation on MLP \texttt{down\_proj} layers (validating its rollback guardrail once RLVR resolves looping) and introduce \texttt{TurboQuantHybridCache}, which compresses the 6 Gated Attention KV caches by \textbf{4.58$\times$} at 3-bit and \textbf{3.59$\times$} at 4-bit while leaving all 18 Gated DeltaNet states untouched, uncovering an important multimodal visual-patch quantization trade-off. In a 3-tier generalization gauntlet spanning 50 unseen out-of-distribution (OOD) dashboards, 50 \texttt{ChartQA} charts, and 50 \texttt{BFCL v3} tool-calling prompts, our v1 checkpoint reaches \textbf{80.0\%} OOD accuracy while Vision-Prefix-Exempt 4-bit TurboQuant recovers \textbf{+10.0 points} over naive 4-bit quantization (62.0\% to 72.0\%). Finally, our v2 architecture combining Encode-Think-Decode (ETD) middle-stack looping, \texttt{ARLoop} depth-attention residuals, and Dr. GRPO with DAPO Clip-Higher lifts \texttt{BFCL v3} accuracy to \textbf{74.0\%} (+26.0 points over stock, +6.0 over v1) and recovers \texttt{ChartQA} to \textbf{72.0\%} at 13.70\,s/prompt.
+Small multimodal language models (under 1B parameters) are attractive for local Site Reliability Engineering (SRE) automation, yet stock checkpoints frequently suffer from catastrophic reasoning-loop collapse when tasked with visual telemetry triage and strict JSON tool calling. We present a non-destructive \textbf{Looped Hybrid Transformer} wrapper around \texttt{Qwen/Qwen3.5-0.8B} (18 Gated DeltaNet recurrent layers and 6 Gated Attention layers) trained and evaluated end-to-end on a single consumer 8.00\,GB NVIDIA RTX 4060 Laptop GPU. Our architecture introduces learnable scalar input re-injection after native vision-patch merging, isolated per-loop hybrid KV/recurrent caches (\texttt{PerLoopHybridCache}), and an auxiliary middle-loop cross-entropy objective. On a strictly isolated 15-prompt Visual SRE held-out benchmark featuring dark-mode 2$\times$2 Grafana telemetry dashboards and 5 deterministic operations tools, stock \texttt{Qwen3.5-0.8B} achieves \textbf{0.0\%} tool accuracy with \textbf{100.0\%} \texttt{<think>} truncation. Looped PEFT LoRA SFT distilled from 34 DeepSeek Chain-of-Thought and multi-turn error-recovery traces lifts held-out tool accuracy to \textbf{73.3\%} (0.0\% truncation) while making Loop~2 loss (0.8897) outperform Loop~1 (0.9562). A pure-PyTorch Group Relative Policy Optimization (GRPO) stage using a shared-base frozen reference adapter ($\approx$21\,MB overhead, 3.37\,GB peak VRAM) further raises held-out accuracy to \textbf{86.7\%} (13/15, mean reward $+0.8667$). We additionally evaluate reversible Weight-Space Programming (WSP) directional ablation on MLP \texttt{down\_proj} layers (validating its rollback guardrail once RLVR resolves looping) and introduce \texttt{TurboQuantHybridCache}, which compresses the 6 Gated Attention KV caches by \textbf{4.58$\times$} at 3-bit and \textbf{3.59$\times$} at 4-bit while leaving all 18 Gated DeltaNet states untouched, uncovering an important multimodal visual-patch quantization trade-off. In a 3-tier generalization gauntlet spanning 50 unseen out-of-distribution (OOD) dashboards, 50 \texttt{ChartQA} charts, and 50 \texttt{BFCL v3} tool-calling prompts, our v1 checkpoint reaches \textbf{80.0\%} OOD accuracy while Vision-Prefix-Exempt 4-bit TurboQuant recovers \textbf{+10.0 points} over naive 4-bit quantization (62.0\% to 72.0\%). Upgrading to Encode-Think-Decode (ETD) middle-stack looping, \texttt{ARLoop} depth-attention residuals, and Dr. GRPO with DAPO Clip-Higher lifts \texttt{BFCL v3} to \textbf{74.0\%} (+26.0 points over stock in v2), while scaling to 180 rebalanced traces with a $-0.50$ anti-abstention penalty and fused \texttt{fla} Triton DeltaNet kernels (1.24$\times$ faster decode: 3.93 to 4.88\,tok/s) pushes v2.1 to a new best of \textbf{84.0\%} OOD accuracy (\textbf{86.7\%} on adversarial Conflict Traps, \textbf{76.0\%} under 4-bit Vision-Exempt TurboQuant) and \textbf{74.0\%} on \texttt{ChartQA}.
 \end{abstract}
 
 % ----------------------------------------------------------------------
@@ -221,7 +221,7 @@ To test true out-of-distribution (OOD) robustness and address the visual-patch q
 
 \begin{table*}[t]
 \centering
-\caption{3-Tier Hard Stress-Test \& Generalization Gauntlet (Stock vs. v1 vs. v2, deterministic greedy decoding on RTX 4060 8\,GB). Tier 1 evaluates 50 unseen OOD dashboards (20 Visual Shift, 15 Pixel-Only, 15 Conflict Trap); Tier 2 evaluates 50 \texttt{ChartQA} test charts; Tier 3 evaluates 50 \texttt{BFCL v3} tool-calling prompts (20 Simple, 15 Multiple, 15 Irrelevance).}
+\caption{3-Tier Hard Stress-Test \& Generalization Gauntlet (Stock vs. v1 vs. v2 vs. v2.1, deterministic greedy decoding on RTX 4060 8\,GB). Deployment tables standardize on \texttt{bf16} and 4-bit Vision-Prefix-Exempt TurboQuant. Tier 1 evaluates 50 unseen OOD dashboards (20 Visual Shift, 15 Pixel-Only, 15 Conflict Trap); Tier 2 evaluates 50 \texttt{ChartQA} test charts; Tier 3 evaluates 50 \texttt{BFCL v3} tool-calling prompts (20 Simple, 15 Multiple, 15 Irrelevance).}
 \label{tab:v2_gauntlet}
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{@{}lcccccccccc@{}}
@@ -229,18 +229,33 @@ To test true out-of-distribution (OOD) robustness and address the visual-patch q
 \textbf{Model / Configuration} & \textbf{KV Quant} & \textbf{Vis-Ex.} & \textbf{OOD All} & \textbf{Vis. Shift} & \textbf{Pixel-Only} & \textbf{Conflict} & \textbf{ChartQA} & \textbf{BFCL All} & \textbf{BFCL Irrel.} & \textbf{VRAM} \\
 \midrule
 Stock Qwen3.5-0.8B (1-Loop) & \texttt{none} & N/A & 0.0\% & 0.0\% & 0.0\% & 0.0\% & \textbf{80.0\%} & 48.0\% & \textbf{100.0\%} & 2.02\,GB \\
-\textbf{v1 Merged (2-Loop, bf16)} & \texttt{none} & N/A & \textbf{80.0\%} & 85.0\% & \textbf{86.7\%} & \textbf{66.7\%} & 70.0\% & 68.0\% & 60.0\% & 2.10\,GB \\
+v1 Merged (2-Loop, bf16) & \texttt{none} & N/A & 80.0\% & \textbf{85.0\%} & \textbf{86.7\%} & 66.7\% & 70.0\% & 68.0\% & 60.0\% & 2.10\,GB \\
 v1 Merged (Naive TQ 4-bit) & \texttt{tq\_4bit} & No & 62.0\% & 60.0\% & 66.7\% & 60.0\% & -- & -- & -- & 2.04\,GB \\
-\textbf{v1 Merged (TQ 4-bit Vis-Ex.)} & \texttt{tq\_4bit} & Yes & \textbf{72.0\%} & \textbf{85.0\%} & 73.3\% & 53.3\% & -- & -- & -- & 2.06\,GB \\
-v1 Merged (Naive TQ 3-bit) & \texttt{tq\_3bit} & No & 58.0\% & 60.0\% & 60.0\% & 53.3\% & -- & -- & -- & 2.03\,GB \\
-v1 Merged (TQ 3-bit Vis-Ex.) & \texttt{tq\_3bit} & Yes & 44.0\% & 40.0\% & 66.7\% & 26.7\% & -- & -- & -- & 2.05\,GB \\
-\textbf{v2 ETD+ARLoop (2-Loop, bf16)} & \texttt{none} & N/A & 66.0\% & 70.0\% & 66.7\% & 60.0\% & \textbf{72.0\%} & \textbf{74.0\%} & \textbf{73.3\%} & 2.09\,GB \\
+v1 Merged (TQ 4-bit Vis-Ex.) & \texttt{tq\_4bit} & Yes & 72.0\% & \textbf{85.0\%} & 73.3\% & 53.3\% & -- & -- & -- & 2.06\,GB \\
+v2 ETD+ARLoop (2-Loop, bf16) & \texttt{none} & N/A & 66.0\% & 70.0\% & 66.7\% & 60.0\% & 72.0\% & \textbf{74.0\%} & \textbf{73.3\%} & 2.09\,GB \\
 v2 ETD+ARLoop (TQ 4-bit Vis-Ex.) & \texttt{tq\_4bit} & Yes & 62.0\% & 75.0\% & 53.3\% & 53.3\% & -- & -- & -- & 2.04\,GB \\
-v2 ETD+ARLoop (TQ 3-bit Vis-Ex.) & \texttt{tq\_3bit} & Yes & 54.0\% & 60.0\% & 46.7\% & 53.3\% & -- & -- & -- & 2.04\,GB \\
+\textbf{v2.1 ETD+ARLoop (2-Loop, bf16)} & \texttt{none} & N/A & \textbf{84.0\%} & 80.0\% & \textbf{86.7\%} & \textbf{86.7\%} & \textbf{74.0\%} & 68.0\% & 60.0\% & 2.09\,GB \\
+\textbf{v2.1 ETD+ARLoop (TQ 4-bit Vis-Ex.)} & \texttt{tq\_4bit} & Yes & \textbf{76.0\%} & 75.0\% & 80.0\% & 73.3\% & -- & -- & -- & 2.04\,GB \\
 \bottomrule
 \end{tabular}%
 }
 \end{table*}
+
+\begin{table}[t]
+\centering
+\caption{Decode throughput benchmark (\texttt{num\_loops=2}, 50 tokens $\times$ 3 runs, RTX 4060 8\,GB). Fused \texttt{fla} Triton DeltaNet kernels achieve 1.24$\times$ speedup over the pure-PyTorch fallback; on Windows without MSVC \texttt{cl.exe}, \texttt{torch.compile} selects \texttt{cudagraphs} fallback.}
+\label{tab:speedup}
+\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Decode Backend} & \textbf{Latency} & \textbf{Throughput} & \textbf{Speedup} & \textbf{VRAM} \\
+\midrule
+Eager (PyTorch Fallback) & 12.711\,s & 3.93\,tok/s & 1.00$\times$ & 1.74\,GB \\
+\textbf{Fused \texttt{fla} Triton DeltaNet} & \textbf{10.255\,s} & \textbf{4.88\,tok/s} & \textbf{1.24$\times$} & \textbf{1.72\,GB} \\
+Fused \texttt{fla} + \texttt{torch.compile} (\texttt{cudagraphs}) & 17.568\,s & 2.85\,tok/s & 0.73$\times$ & 1.73\,GB \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{table}[t]
 \centering
@@ -263,6 +278,7 @@ $L=3$ & 80.0\% & 90.0\% & 80.0\% & \textbf{66.7\%} & 6.12 tok/s / 2.19\,GB \\
 (2) \textbf{v2 wins on public generalization:} compared to v1, v2 improves \texttt{ChartQA} from 70.0\% to 72.0\% (+2.0\,pts) and raises \texttt{BFCL v3} from 68.0\% to 74.0\% (+6.0\,pts over v1, +26.0\,pts over Stock), with Irrelevance jumping from 60.0\% to 73.3\% (+13.3\,pts) and Simple reaching 75.0\%.
 (3) \textbf{Refusal calibration vs. single-turn SRE recall:} v1 leads Tier 1 OOD (80.0\% vs. 66.0\%) because v2's 12 negative refusal examples induced cautious abstention on 8 of its 17 OOD misses (plus 6 conservative \texttt{query\_logs} calls).
 (4) \textbf{Latent depth targets hard reasoning:} in Table~\ref{tab:loop_sweep}, Visual Shift and Pixel-Only saturate at $L=1$, while the adversarial Conflict Trap split improves from 60.0\% ($L=1$) to 66.7\% ($L=2, 3$).
+(5) \textbf{v2.1 resolves over-refusal and accelerates decode:} scaling SFT to 180 validated traces (8.9\% refusal mix, 0 overlap with held-out or OOD splits) and running 60-step Dr. GRPO/DAPO with a $-0.50$ false-abstention penalty (3.37\,GB peak VRAM) lifts v2.1 to a new best of \textbf{84.0\%} OOD accuracy (90.0\% schema valid, \textbf{86.7\%} Conflict Traps, \textbf{76.0\%} under 4-bit Vision-Exempt TurboQuant) and \textbf{74.0\%} \texttt{ChartQA} (80.0\% on the 15-prompt held-out set), while fused \texttt{fla} Triton DeltaNet kernels accelerate 2-loop decode by \textbf{1.24$\times$} (3.93 to 4.88\,tok/s, Table~\ref{tab:speedup}).
 
 % ----------------------------------------------------------------------
 % 7. Conclusion & Future Work

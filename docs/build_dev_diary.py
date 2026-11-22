@@ -509,6 +509,8 @@ def build_pdf() -> Path:
         ["v1 Merged (TQ 4-bit Vis-Exempt)", "72.0%", "85.0%", "53.3%", "--", "--", "--"],
         ["v2 ETD+ARLoop (2-Loop, bf16)", "66.0%", "70.0%", "60.0%", "72.0%", "74.0%", "73.3%"],
         ["v2 ETD+ARLoop (TQ 4-bit Vis-Ex.)", "62.0%", "75.0%", "53.3%", "--", "--", "--"],
+        ["v2.1 ETD+ARLoop (2-Loop, bf16)", "84.0%", "80.0%", "86.7%", "74.0%", "68.0%", "60.0%"],
+        ["v2.1 ETD+ARLoop (TQ 4-bit Vis-Ex.)", "76.0%", "75.0%", "73.3%", "--", "--", "--"],
     ]
     v2_tbl = Table(
         v2_table_data,
@@ -527,8 +529,10 @@ def build_pdf() -> Path:
                 ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, LIGHT_BG]),
                 ("BACKGROUND", (0, 2), (-1, 2), colors.HexColor("#ECFDF5")),
                 ("BACKGROUND", (0, 5), (-1, 5), colors.HexColor("#EEF2FF")),
+                ("BACKGROUND", (0, 7), (-1, 7), colors.HexColor("#DCFCE7")),
                 ("FONTNAME", (0, 2), (-1, 2), "Helvetica-Bold"),
                 ("FONTNAME", (0, 5), (-1, 5), "Helvetica-Bold"),
+                ("FONTNAME", (0, 7), (-1, 7), "Helvetica-Bold"),
                 ("GRID", (0, 0), (-1, -1), 0.4, BORDER),
                 ("TOPPADDING", (0, 0), (-1, -1), 4.5),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5),
@@ -539,12 +543,23 @@ def build_pdf() -> Path:
     )
     story.append(KeepTogether([
         v2_tbl,
-        P("Table 2: Stock vs. v1 vs. v2 across Tier 1 OOD SRE (50 dashboards), Tier 2 ChartQA (50), and Tier 3 BFCL v3 (50) on RTX 4060 8 GB.", caption_style),
+        P("Table 2: Stock vs. v1 vs. v2 vs. v2.1 across Tier 1 OOD SRE (50 dashboards), Tier 2 ChartQA (50), and Tier 3 BFCL v3 (50) on RTX 4060 8 GB.", caption_style),
     ]))
     story.append(Spacer(1, 6))
     story.append(
         P(
-            "Building v1 and v2 end-to-end on one 8 GB laptop GPU proved that thoughtful architecture, honest ablations, and clean "
+            "<b>v2.1 Final Polish (Fused FLA Triton Kernels + Anti-Abstention Dr. GRPO):</b> Installing <code>triton-windows</code> "
+            "and <code>flash-linear-attention</code> (<code>fla==0.6.0</code>) dispatched all 18 Gated DeltaNet layers to fused Triton "
+            "kernels, boosting 2-loop decode throughput by <b>1.24x</b> (3.93 to <b>4.88 tok/s</b>, 10.255 s/prompt, 1.72 GB VRAM). "
+            "Scaling SFT to 180 validated traces (rebalancing refusal to 8.9%, 0 overlap) and running 60-step Dr. GRPO/DAPO with a "
+            "<code>-0.50</code> false-abstention penalty (3.37 GB peak VRAM) pushed v2.1 to a new best of <b>84.0% OOD accuracy</b> "
+            "(90.0% schema valid, <b>86.7% Conflict Traps</b>, <b>76.0% under 4-bit Vision-Exempt TurboQuant</b>) and <b>74.0% ChartQA</b>."
+        )
+    )
+    story.append(Spacer(1, 6))
+    story.append(
+        P(
+            "Building v1, v2, and v2.1 end-to-end on one 8 GB laptop GPU proved that thoughtful architecture, honest ablations, and clean "
             "pure-PyTorch RLVR beat throwing raw compute at a problem. Next up: exploring in-layer Hardware ALU Experts routed via RLVR "
             "for exact numerical reasoning inside looped blocks."
         )

@@ -1,0 +1,41 @@
+{
+  "backend": {
+    "torch_version": "2.11.0+cu128",
+    "cuda_version": "12.8",
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "triton_version": "3.9.0",
+    "fla_installed": true,
+    "fla_version": "0.6.0",
+    "deltanet_backend": "fla_triton_fused",
+    "causal_conv1d_installed": false,
+    "causal_conv1d_backend": "pytorch_fallback"
+  },
+  "benchmarks": {
+    "eager_pytorch_fallback": {
+      "runs": 3,
+      "tokens_per_run": 50,
+      "mean_latency_s": 12.711,
+      "tokens_per_sec": 3.93,
+      "peak_vram_gb": 1.74,
+      "compile_fallback_triggered": false
+    },
+    "fused_fla_triton": {
+      "runs": 3,
+      "tokens_per_run": 50,
+      "mean_latency_s": 10.255,
+      "tokens_per_sec": 4.88,
+      "peak_vram_gb": 1.72,
+      "compile_fallback_triggered": false,
+      "speedup_vs_eager": 1.24
+    },
+    "fused_fla_triton_compile": {
+      "runs": 3,
+      "tokens_per_run": 50,
+      "mean_latency_s": 17.568,
+      "tokens_per_sec": 2.85,
+      "peak_vram_gb": 1.73,
+      "compile_fallback_triggered": false,
+      "speedup_vs_eager": 0.73
+    }
+  }
+}

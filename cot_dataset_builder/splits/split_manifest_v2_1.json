@@ -1,0 +1,19 @@
+{
+  "version": "2.1",
+  "train_sft_v2_1_count": 180,
+  "train_grpo_prompts_v2_1_count": 173,
+  "negative_refusal_count": 4,
+  "negative_refusal_pct": 2.22,
+  "eval_heldout_count": 15,
+  "ood_sre_count": 50,
+  "overlapping_heldout_ids": 0,
+  "overlapping_ood_ids": 0,
+  "overlapping_heldout_images": 0,
+  "overlapping_ood_images": 0,
+  "sha256": {
+    "train_sft_v2_1.jsonl": "636a30cb1670fb30c7b2a3efb6e3a4b21e30cbd06074ba74df0fc8ac4058b0f3",
+    "train_grpo_prompts_v2_1.jsonl": "a3d9e42622f24c2d626f16b505e4e6f26d453eea66e2672f17bf90d64efb10fe",
+    "eval_heldout.jsonl": "3e3982c792605feb175c5bff8939b1cb4b6d5f7c14c06abf4a7c9aeb24632795",
+    "ood_sre_prompts.jsonl": "0009e9c406a3b525941cc308102539cafbf06bfb9261e53666e7495f77cab44a"
+  }
+}

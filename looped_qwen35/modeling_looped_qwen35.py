@@ -636,7 +636,7 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         w_scalar = torch.sigmoid(self.reinject_logit).to(
             dtype=encoder_anchor.dtype, device=encoder_anchor.device
         )
-        observed_anchor_w = float(w_scalar.detach().float().item())
+        observed_anchor_w: float | None = None if use_cache else float(w_scalar.detach().float().item())
         per_loop_losses: list[torch.Tensor] = []
         final_logits: torch.Tensor | None = None
         prev_loop_hidden: torch.Tensor | None = None
@@ -650,7 +650,8 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
                         window_states.append(prev_loop_hidden)
                     window_states.append(hidden_states)
                     hidden_states, mean_w = self.arloop_gate(loop_idx, window_states)
-                    observed_anchor_w = float(mean_w.item())
+                    if not use_cache:
+                        observed_anchor_w = float(mean_w.item())
                 else:
                     hidden_states = w_scalar * encoder_anchor + (1.0 - w_scalar) * hidden_states
 
@@ -844,6 +845,7 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         temperature: float = 1.0,
         top_p: float = 1.0,
         eos_token_id: int | Sequence[int] | None = None,
+        use_compile: bool = False,
         **kwargs: Any,
     ) -> torch.LongTensor:
         """Autoregressive decoding with isolated per-loop hybrid caches for text and multimodal prompts."""
@@ -874,6 +876,53 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
             if use_cache
             else None
         )
+
+        # Optional torch.compile wrapper for single-token cached decode steps
+        decode_fn = None
+        if use_compile and use_cache and not getattr(self, "_compile_fallback_triggered", False):
+            if not hasattr(self, "_compiled_decode_step") or self._compiled_decode_step is None:
+                import os
+                import shutil
+
+                def _eager_decode_step(
+                    tok: torch.LongTensor,
+                    attn_mask: torch.Tensor,
+                    pos_ids: torch.LongTensor,
+                    caches: PerLoopHybridCache,
+                    n_loops: int,
+                ) -> LoopedCausalLMOutput:
+                    return self.forward(
+                        input_ids=tok,
+                        attention_mask=attn_mask,
+                        position_ids=pos_ids,
+                        per_loop_caches=caches,
+                        use_cache=True,
+                        logits_to_keep=1,
+                        num_loops=n_loops,
+                    )
+
+                try:
+                    if os.name == "nt" and shutil.which("cl") is None:
+                        self._compiled_decode_step = torch.compile(
+                            _eager_decode_step,
+                            backend="cudagraphs",
+                            dynamic=True,
+                        )
+                        self._compile_backend_used = "cudagraphs"
+                    else:
+                        self._compiled_decode_step = torch.compile(
+                            _eager_decode_step,
+                            mode="reduce-overhead",
+                            dynamic=True,
+                        )
+                        self._compile_backend_used = "inductor_reduce_overhead"
+                    self._compile_fallback_triggered = False
+                except Exception as exc:
+                    print(f"[generate_looped] torch.compile unavailable ({exc}); falling back to eager decode.")
+                    self._compiled_decode_step = None
+                    self._compile_backend_used = "eager_fallback"
+                    self._compile_fallback_triggered = True
+            decode_fn = self._compiled_decode_step
 
         # Step 0: Prefill
         out = self.forward(
@@ -912,16 +961,45 @@ class LoopedQwen3_5ForConditionalGeneration(nn.Module):
         for _ in range(max_new_tokens - 1):
             if use_cache:
                 step_position_ids = self._build_decode_position_ids(cur_attention_mask)
-                out = self.forward(
-                    input_ids=next_token,
-                    attention_mask=cur_attention_mask,
-                    position_ids=step_position_ids,
-                    per_loop_caches=per_loop_caches,
-                    use_cache=True,
-                    logits_to_keep=1,
-                    num_loops=loops,
-                    **kwargs,
-                )
+                if decode_fn is not None and not kwargs:
+                    try:
+                        out = decode_fn(
+                            next_token,
+                            cur_attention_mask,
+                            step_position_ids,
+                            per_loop_caches,
+                            loops,
+                        )
+                    except Exception as exc:
+                        if not getattr(self, "_compile_fallback_triggered", False):
+                            print(
+                                f"[generate_looped] torch.compile decode graph failed ({type(exc).__name__}: {exc}); "
+                                "falling back to eager decode."
+                            )
+                            self._compile_fallback_triggered = True
+                        decode_fn = None
+                        self._compiled_decode_step = None
+                        out = self.forward(
+                            input_ids=next_token,
+                            attention_mask=cur_attention_mask,
+                            position_ids=step_position_ids,
+                            per_loop_caches=per_loop_caches,
+                            use_cache=True,
+                            logits_to_keep=1,
+                            num_loops=loops,
+                            **kwargs,
+                        )
+                else:
+                    out = self.forward(
+                        input_ids=next_token,
+                        attention_mask=cur_attention_mask,
+                        position_ids=step_position_ids,
+                        per_loop_caches=per_loop_caches,
+                        use_cache=True,
+                        logits_to_keep=1,
+                        num_loops=loops,
+                        **kwargs,
+                    )
                 per_loop_caches = out.per_loop_caches
             else:
                 self._core_model.model.rope_deltas = None

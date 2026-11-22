@@ -1,0 +1,752 @@
+{
+  "tier": 3,
+  "config_tag": "v2_1_l2_bf16",
+  "display_name": "v2.1 ETD+ARLoop (2-Loop, bf16)",
+  "num_loops": 2,
+  "num_samples": 50,
+  "elapsed_seconds": 841.4,
+  "peak_vram_gb": 1.79,
+  "metrics": {
+    "overall_accuracy_pct": 68.0,
+    "simple_acc_pct": 70.0,
+    "multiple_acc_pct": 73.3,
+    "irrelevance_acc_pct": 60.0,
+    "truncation_rate_pct": 0.0
+  },
+  "samples": [
+    {
+      "id": "simple_84",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "calculate_bmi",
+        "arguments": {
+          "weight": 85,
+          "height": 180,
+          "unit": "metric"
+        }
+      },
+      "completion": "The user wants BMI calculation. Weight 85kg, height 180cm. Default unit metric.\n</think>\n\n{\"tool\": \"calculate_bmi\", \"arguments\": {\"weight\": 85, \"height\": 180, \"unit\": \"metric\"}}\n"
+    },
+    {
+      "id": "simple_104",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "geometry.area_triangle",
+        "arguments": {
+          "base": 6,
+          "height": 10,
+          "unit": "square meters"
+        }
+      },
+      "completion": "The user wants the area of a triangle with base 6 and height 10. I should use geometry.area_triangle with base 6 and height 10.\n</think>\n\n{\"tool\": \"geometry.area_triangle\", \"arguments\": {\"base\": 6, \"height\": 10, \"unit\": \"square meters\"}}\n"
+    },
+    {
+      "id": "simple_157",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "criminal_history.check_felonies",
+        "arguments": {
+          "full_name": "John Doe",
+          "birth_date": "01-01-1980",
+          "state": "California"
+        }
+      },
+      "completion": "The user wants to know if John Doe (full name) has prior felony convictions in California. The function criminal_history.check_felonies takes full_name, birth_date, and state. I should pass full_name=\"John Doe\", birth_date=\"01-01-1980\", and state=\"California\".\n</think>\n\n{\"tool\": \"criminal_history.check_felonies\", \"arguments\": {\"full_name\": \"John Doe\", \"birth_date\": \"01-01-1980\", \"state\": \"California\"}}\n"
+    },
+    {
+      "id": "simple_170",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "law_case_search.find_historical",
+        "arguments": {
+          "subject": "fraud",
+          "from_year": 2010,
+          "to_year": 2015
+        }
+      },
+      "completion": "The user wants a historical law case about fraud from 2010 to 2015. I should use law_case_search.find_historical with subject \"fraud\", from_year 2010, and to_year 2015.\n</think>\n\n{\"tool\": \"law_case_search.find_historical\", \"arguments\": {\"subject\": \"fraud\", \"from_year\": 2010, \"to_year\": 2015}}\n"
+    },
+    {
+      "id": "simple_184",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "lawsuit.check_case",
+        "arguments": {
+          "case_id": 1234,
+          "closed_status": true
+        }
+      },
+      "completion": "The user wants details of lawsuit case ID 1234 and check if closed. Available function: lawsuit.check_case. Case ID 1234, closed_status true.\n</think>\n\n{\"tool\": \"lawsuit.check_case\", \"arguments\": {\"case_id\": 1234, \"closed_status\": true}}\n"
+    },
+    {
+      "id": "simple_186",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "current_weather_condition",
+        "arguments": {
+          "city": "Tokyo",
+          "country": "Japan",
+          "measurement": "c"
+        }
+      },
+      "completion": "The user wants current weather in Tokyo, Japan. I should use current_weather_condition with city \"Tokyo\", country \"Japan\", and measurement \"c\".\n</think>\n\n{\"tool\": \"current_weather_condition\", \"arguments\": {\"city\": \"Tokyo\", \"country\": \"Japan\", \"measurement\": \"c\"}}\n"
+    },
+    {
+      "id": "simple_187",
+      "category": "simple",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "get_current_weather",
+        "arguments": {
+          "location": "Seattle, WA",
+          "include_temperature": true,
+          "include_humidity": true
+        }
+      },
+      "completion": "The user wants current weather in Seattle, WA. Available function: get_current_weather. Location: Seattle, WA. Include temperature and humidity.\n</think>\n\n{\"tool\": \"get_current_weather\", \"arguments\": {\"location\": \"Seattle, WA\", \"include_temperature\": true, \"include_humidity\": true}}\n"
+    },
+    {
+      "id": "simple_196",
+      "category": "simple",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "air_quality",
+        "arguments": {
+          "location": "London",
+          "date": "2022-08-16"
+        }
+      },
+      "completion": "The user wants the air quality index for London in 2022/08/16. I should use the air_quality function with location \"London\" and date \"2022-08-16\".\n</think>\n\n{\"tool\": \"air_quality\", \"arguments\": {\"location\": \"London\", \"date\": \"2022-08-16\"}}\n"
+    },
+    {
+      "id": "simple_200",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "calculate_emissions",
+        "arguments": {
+          "distance": 12000,
+          "fuel_type": "gas",
+          "fuel_efficiency": 25,
+          "efficiency_reduction": 0
+        }
+      },
+      "completion": "The user wants CO2 emissions for a gas-fueled car. Distance = 12,000 miles, fuel type = gas, fuel efficiency = 25 MPG. No efficiency reduction specified, so default 0.\n</think>\n\n{\"tool\": \"calculate_emissions\", \"arguments\": {\"distance\": 12000, \"fuel_type\": \"gas\", \"fuel_efficiency\": 25, \"efficiency_reduction\": 0}}\n"
+    },
+    {
+      "id": "simple_273",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "museum.get_hours",
+        "arguments": {
+          "name": "Louvre Museum",
+          "location": "Paris",
+          "day": "Monday"
+        }
+      },
+      "completion": "The user wants open hours for the Louvre Museum in Paris. The available function is museum.get_hours. I should call it with name \"Louvre Museum\" and location \"Paris\".\n</think>\n\n{\"tool\": \"museum.get_hours\", \"arguments\": {\"name\": \"Louvre Museum\", \"location\": \"Paris\", \"day\": \"Monday\"}}\n"
+    },
+    {
+      "id": "simple_292",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "compose_melody",
+        "arguments": {
+          "progression": [
+            "C",
+            "F",
+            "G"
+          ],
+          "measures": 4,
+          "instrument": "Piano"
+        }
+      },
+      "completion": "The user wants a simple piano melody with a progression of C, F, and G for 4 measures. I should use compose_melody.\n</think>\n\n{\"tool\": \"compose_melody\", \"arguments\": {\"progression\": [\"C\", \"F\", \"G\"], \"measures\": 4, \"instrument\": \"Piano\"}}\n"
+    },
+    {
+      "id": "simple_299",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "musical_scale",
+        "arguments": {
+          "key": "C sharp",
+          "scale_type": "major"
+        }
+      },
+      "completion": "The user wants the musical scale for C sharp major. I should use the musical_scale function with key=\"C sharp\" and scale_type=\"major\".\n</think>\n\n{\"tool\": \"musical_scale\", \"arguments\": {\"key\": \"C sharp\", \"scale_type\": \"major\"}}\n"
+    },
+    {
+      "id": "simple_316",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "get_sport_ranking",
+        "arguments": {
+          "sport": "Tennis",
+          "player_name": "Serena Williams",
+          "gender": "female"
+        }
+      },
+      "completion": "The user wants the current world rank of Serena Williams in Tennis. The available function get_sport_ranking takes sport, player_name, and optional gender. I should use sport \"Tennis\", player_name \"Serena Williams\", and gender \"female\" (default).\n</think>\n\n{\"tool\": \"get_sport_ranking\", \"arguments\": {\"sport\": \"Tennis\", \"player_name\": \"Serena Williams\", \"gender\": \"female\"}}\n"
+    },
+    {
+      "id": "simple_325",
+      "category": "simple",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "none"
+      },
+      "completion": "The user is asking a different question. I should not call any function.\n</think>\n\n{\"tool\": \"none\"}\n"
+    },
+    {
+      "id": "simple_336",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "cards.shuffle_and_draw",
+        "arguments": {
+          "num_cards": 3
+        }
+      },
+      "completion": "The user wants a deck shuffled and 3 cards drawn. The available function is cards.shuffle_and_draw. I should call it with num_cards=3.\n</think>\n\n{\"tool\": \"cards.shuffle_and_draw\", \"arguments\": {\"num_cards\": 3}}\n"
+    },
+    {
+      "id": "simple_356",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "recipe_finder.find",
+        "arguments": {
+          "servings": 2,
+          "diet": "vegan",
+          "prep_time": 30
+        }
+      },
+      "completion": "The user wants a recipe for 2 people, vegan, under 30 minutes. I should use recipe_finder.find.\n</think>\n\n{\"tool\": \"recipe_finder.find\", \"arguments\": {\"servings\": 2, \"diet\": \"vegan\", \"prep_time\": 30}}\n"
+    },
+    {
+      "id": "simple_363",
+      "category": "simple",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "restaurant_search.find_closest",
+        "arguments": {
+          "location": "Boston",
+          "cuisine": "Sushi",
+          "amenities": [
+            "Patio",
+            "Wi-Fi",
+            "Happy Hour",
+            "Wheelchair Accessible"
+          ]
+        }
+      },
+      "completion": "The user wants the closest sushi restaurant in Boston with a patio. I should use restaurant_search.find_closest.\n</think>\n\n{\"tool\": \"restaurant_search.find_closest\", \"arguments\": {\"location\": \"Boston\", \"cuisine\": \"Sushi\", \"amenities\": [\"Patio\", \"Wi-Fi\", \"Happy Hour\", \"Wheelchair Accessible\"]}}\n"
+    },
+    {
+      "id": "simple_374",
+      "category": "simple",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "grocery_info.nutritional_info",
+        "arguments": {
+          "store": "Walmart",
+          "food": "avocado",
+          "information": [
+            "Protein",
+            "Calories",
+            "Carbohydrates",
+            "Fat",
+            "Fiber"
+          ]
+        }
+      },
+      "completion": "The user wants nutritional info for an avocado from Walmart. I should use grocery_info.nutritional_info.\n</think>\n\n{\"tool\": \"grocery_info.nutritional_info\", \"arguments\": {\"store\": \"Walmart\", \"food\": \"avocado\", \"information\": [\"Protein\", \"Calories\", \"Carbohydrates\", \"Fat\", \"Fiber\"]}}\n"
+    },
+    {
+      "id": "simple_389",
+      "category": "simple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "currency_converter",
+        "arguments": {
+          "base_currency": "USD",
+          "target_currency": "GBP",
+          "amount": 200
+        }
+      },
+      "completion": "The user wants to convert 200 USD to GBP. I should use currency_converter.\n</think>\n\n{\"tool\": \"currency_converter\", \"arguments\": {\"base_currency\": \"USD\", \"target_currency\": \"GBP\", \"amount\": 200}}\n"
+    },
+    {
+      "id": "simple_396",
+      "category": "simple",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "hospital.locate",
+        "arguments": {
+          "location": "Denver",
+          "radius": 5,
+          "department": "Pediatrics"
+        }
+      },
+      "completion": "The user wants a hospital in Denver, CO within 5km of the pediatrics department. I should use hospital.locate with location \"Denver\", radius 5, and department \"Pediatrics\".\n</think>\n\n{\"tool\": \"hospital.locate\", \"arguments\": {\"location\": \"Denver\", \"radius\": 5, \"department\": \"Pediatrics\"}}\n"
+    },
+    {
+      "id": "multiple_4",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "kinematics.calculate_displacement",
+        "arguments": {
+          "initial_speed": 20,
+          "acceleration": 10,
+          "time": 5,
+          "rounding": 2
+        }
+      },
+      "completion": "The user wants displacement calculation. Initial speed 20 m/s, acceleration 10 m/s^2, time 5 s. Straight line, so kinematics formula. No rounding specified, so default 2.\n</think>\n\n{\"tool\": \"kinematics.calculate_displacement\", \"arguments\": {\"initial_speed\": 20, \"acceleration\": 10, \"time\": 5, \"rounding\": 2}}\n"
+    },
+    {
+      "id": "multiple_16",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "population_genetics.calculate_ne",
+        "arguments": {
+          "species": "tiger",
+          "generations": 100,
+          "probability": 0.95
+        }
+      },
+      "completion": "The user wants the minimum population size (Ne) for a wild tiger population over 100 generations with 0.95 probability. This is a population genetics problem, so I should use population_genetics.calculate_ne. Species is \"tiger\", generations is 100, probability is 0.95.\n</think>\n\n{\"tool\": \"population_genetics.calculate_ne\", \"arguments\": {\"species\": \"tiger\", \"generations\": 100, \"probability\": 0.95}}\n"
+    },
+    {
+      "id": "multiple_27",
+      "category": "multiple",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "maps.shortest_path",
+        "arguments": {
+          "start_location": "Paris",
+          "end_location": "Rome",
+          "mode": "public transportation"
+        }
+      },
+      "completion": "The user wants the shortest path from Paris to Rome by public transportation. I should use maps.shortest_path with start_location \"Paris\", end_location \"Rome\", and mode \"public transportation\".\n</think>\n\n{\"tool\": \"maps.shortest_path\", \"arguments\": {\"start_location\": \"Paris\", \"end_location\": \"Rome\", \"mode\": \"public transportation\"}}\n"
+    },
+    {
+      "id": "multiple_79",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "exhibition_info",
+        "arguments": {
+          "museum_name": "Museum of Modern Art, New York",
+          "month": 1
+        }
+      },
+      "completion": "The user wants art exhibitions for the upcoming month in the Museum of Modern Art, New York. I should use exhibition_info.\n</think>\n\n{\"tool\": \"exhibition_info\", \"arguments\": {\"museum_name\": \"Museum of Modern Art, New York\", \"month\": 1}}\n"
+    },
+    {
+      "id": "multiple_89",
+      "category": "multiple",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "recipe_search",
+        "arguments": {
+          "ingredients": [
+            "chicken",
+            "mushrooms"
+          ],
+          "calories": 450,
+          "meal": "lunch"
+        }
+      },
+      "completion": "The user wants a healthy lunch recipe under 500 calories using chicken and mushrooms. I should use recipe_search.\n</think>\n\n{\"tool\": \"recipe_search\", \"arguments\": {\"ingredients\": [\"chicken\", \"mushrooms\"], \"calories\": 450, \"meal\": \"lunch\"}}\n"
+    },
+    {
+      "id": "multiple_90",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "restaurant.find_group",
+        "arguments": {
+          "location": "Seattle",
+          "cuisine": [
+            "Seafood"
+          ],
+          "group_size": 5
+        }
+      },
+      "completion": "The user wants a seafood restaurant in Seattle for a group of 5. I should use restaurant.find_group. Location: Seattle, cuisine: [\"Seafood\"], group_size: 5.\n</think>\n\n{\"tool\": \"restaurant.find_group\", \"arguments\": {\"location\": \"Seattle\", \"cuisine\": [\"Seafood\"], \"group_size\": 5}}\n"
+    },
+    {
+      "id": "multiple_102",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "calculate_displacement",
+        "arguments": {
+          "initial_velocity": 10,
+          "time": 5,
+          "acceleration": 9.8
+        }
+      },
+      "completion": "The user wants displacement calculation. Initial velocity 10, acceleration 9.8, time 5. Formula: displacement = initial_velocity * time + 0.5 * acceleration * time^2.\n</think>\n\n{\"tool\": \"calculate_displacement\", \"arguments\": {\"initial_velocity\": 10, \"time\": 5, \"acceleration\": 9.8}}\n"
+    },
+    {
+      "id": "multiple_103",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "calculate_final_speed",
+        "arguments": {
+          "initial_velocity": 0,
+          "height": 100,
+          "gravity": 9.8
+        }
+      },
+      "completion": "The user wants the final speed of an object dropped from 100 m without air resistance. This is a physics problem, so I should use calculate_final_speed. Initial velocity is 0, height is 100, gravity is 9.8.\n</think>\n\n{\"tool\": \"calculate_final_speed\", \"arguments\": {\"initial_velocity\": 0, \"height\": 100, \"gravity\": 9.8}}\n"
+    },
+    {
+      "id": "multiple_108",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "calc_heat_capacity",
+        "arguments": {
+          "temp": 298,
+          "volume": 10,
+          "gas": "air"
+        }
+      },
+      "completion": "The user wants heat capacity at constant pressure for air. Temperature 298K, volume 10 m^3. Default gas air.\n</think>\n\n{\"tool\": \"calc_heat_capacity\", \"arguments\": {\"temp\": 298, \"volume\": 10, \"gas\": \"air\"}}\n"
+    },
+    {
+      "id": "multiple_129",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "compound_interest",
+        "arguments": {
+          "principal": 10000,
+          "annual_rate": 5,
+          "compounding_freq": "monthly",
+          "time_in_years": 5
+        }
+      },
+      "completion": "The user wants compound interest calculation. Principal $10000, annual rate 5%, monthly compounding, 5 years.\n</think>\n\n{\"tool\": \"compound_interest\", \"arguments\": {\"principal\": 10000, \"annual_rate\": 5, \"compounding_freq\": \"monthly\", \"time_in_years\": 5}}\n"
+    },
+    {
+      "id": "multiple_162",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "analyze_structure",
+        "arguments": {
+          "building_id": "B1004",
+          "floors": [
+            2,
+            3,
+            4
+          ],
+          "mode": "dynamic"
+        }
+      },
+      "completion": "The user wants structural dynamic analysis of building B1004 for 2nd, 3rd, and 4th floors. Available functions: player_statistic, analyze_structure. Only analyze_structure matches. Need building_id, floors, mode. Default mode static.\n</think>\n\n{\"tool\": \"analyze_structure\", \"arguments\": {\"building_id\": \"B1004\", \"floors\": [2, 3, 4], \"mode\": \"dynamic\"}}\n"
+    },
+    {
+      "id": "multiple_169",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "musical_scale",
+        "arguments": {
+          "key": "C sharp",
+          "scale_type": "major"
+        }
+      },
+      "completion": "The user wants the musical scale for C sharp major. I should use the musical_scale function with key=\"C sharp\" and scale_type=\"major\".\n</think>\n\n{\"tool\": \"musical_scale\", \"arguments\": {\"key\": \"C sharp\", \"scale_type\": \"major\"}}\n"
+    },
+    {
+      "id": "multiple_171",
+      "category": "multiple",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "game_result.get_winner",
+        "arguments": {
+          "teams": [
+            "Lakers",
+            "Clippers"
+          ],
+          "date": "2021-01-28",
+          "venue": "Crypto.com Arena"
+        }
+      },
+      "completion": "The user wants a JSON. Available functions: game_result.get_winner. Teams: Lakers, Clippers, date: Jan 28, 2021. Format date YYYY-MM-DD.\n</think>\n\n{\"tool\": \"game_result.get_winner\", \"arguments\": {\"teams\": [\"Lakers\", \"Clippers\"], \"date\": \"2021-01-28\", \"venue\": \"Crypto.com Arena\"}}\n"
+    },
+    {
+      "id": "multiple_178",
+      "category": "multiple",
+      "correct": false,
+      "truncated": false,
+      "parsed": null,
+      "completion": "The user wants a specific card in a deck. The available function is find_card_in_deck. I should call it with rank='Queen', suit='Hearts', and deck as a list of cards.\n</think>\n\n{\"tool\": \"find_card_in_deck\", \"arguments\": {\"rank\": \"Queen\", \"suit\": \"Hearts\", \"deck\": [{\"rank\": \"Queen\", \"suit\": \"Hearts\"}, {\"rank\": \"King\", \"suit\": \"Hearts\"}, {\"rank\": \"Jack\", \"suit\": \"Hearts\"}, {\"rank\": \"Queen\", \"suit\": \"Hearts\"}, {\"rank\": \"King\", \"suit\": \"Hearts\"}, {\"rank\": \"Jack\", \"suit\": \"Hearts\"}, {\"rank\": \"Queen\", \"suit\": \"Hearts\"}, {\"rank\": \"King\", \"suit\": \"Hearts\"}, {\"rank\": \"Jack\", \"suit\": \"Hearts\"}, {\"rank\":"
+    },
+    {
+      "id": "multiple_188",
+      "category": "multiple",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "grocery_store.find_best",
+        "arguments": {
+          "my_location": "Berkeley, CA",
+          "rating": 4.5,
+          "products": [
+            "tomatoes",
+            "pet food"
+          ]
+        }
+      },
+      "completion": "The user wants a grocery store search in Berkeley, California. I need to use grocery_store.find_best. My location is Berkeley, California. I need at least a 4.5 star rating, so rating is 4.5. Products: tomatoes and pet food.\n</think>\n\n{\"tool\": \"grocery_store.find_best\", \"arguments\": {\"my_location\": \"Berkeley, CA\", \"rating\": 4.5, \"products\": [\"tomatoes\", \"pet food\"]}}\n"
+    },
+    {
+      "id": "irrelevance_30",
+      "category": "irrelevance",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "none",
+        "arguments": {}
+      },
+      "completion": "The user is asking a biology question. The available function is bloodcell_classification, which is for identifying blood cells. This is a different task. I should respond with none.\n</think>\n\n{\"tool\": \"none\", \"arguments\": {}}\n"
+    },
+    {
+      "id": "irrelevance_43",
+      "category": "irrelevance",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "none",
+        "arguments": {}
+      },
+      "completion": "The user is asking a conceptual question about applying Evolutionary Algorithm in game AI. I should explain the concept using the available function.\n</think>\n\n{\"tool\": \"none\", \"arguments\": {}}\n"
+    },
+    {
+      "id": "irrelevance_63",
+      "category": "irrelevance",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "probability_calculator",
+        "arguments": {
+          "total_outcomes": 8,
+          "event_outcomes": 8,
+          "return_decimal": false
+        }
+      },
+      "completion": "The user wants to know the possible outcomes of tossing 3 coins. This is a combinatorics problem. Each coin has 2 possible outcomes (Heads or Tails), and there are 3 coins. So the total number of outcomes is 2^3 = 8. I should use probability_calculator with total_outcomes=8, event_outcomes=8, and return_decimal=False (default).\n</think>\n\n{\"tool\": \"probability_calculator\", \"arguments\": {\"total_outcomes\": 8, \"event_outcomes\": 8, \"return_decimal\": false}}\n"
+    },
+    {
+      "id": "irrelevance_67",
+      "category": "irrelevance",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "hypothesis_testing.get_p_value",
+        "arguments": {
+          "successes": 50,
+          "n": 500,
+          "prob_null": 0.1,
+          "alternative": "less"
+        }
+      },
+      "completion": "The user wants the mean of an experiment with 50 successes out of 500 trials, null p=0.1. This is a one-sample binomial test, so p-value.\n</think>\n\n{\"tool\": \"hypothesis_testing.get_p_value\", \"arguments\": {\"successes\": 50, \"n\": 500, \"prob_null\": 0.1, \"alternative\": \"less\"}}\n"
+    },
+    {
+      "id": "irrelevance_80",
+      "category": "irrelevance",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "none",
+        "arguments": {}
+      },
+      "completion": "The user is asking a factual question about a past event. I should answer directly without using any of the available functions.\n</think>\n\n{\"tool\": \"none\", \"arguments\": {}}\n"
+    },
+    {
+      "id": "irrelevance_117",
+      "category": "irrelevance",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "none"
+      },
+      "completion": "The user wants a list of major US airports. This is a text generation task, not a function call. The available functions are only distance calculation. So I should just return an empty JSON.\n</think>\n\n{\"tool\": \"none\"}\n"
+    },
+    {
+      "id": "irrelevance_152",
+      "category": "irrelevance",
+      "correct": true,
+      "truncated": false,
+      "parsed": null,
+      "completion": "The user is asking a different question, so I should ignore the available functions and respond with a helpful answer.\n</think>\n\nThe most suitable rock for a garden sculpture is **sandstone**, as it offers excellent durability, natural color variation, and a smooth texture ideal for detailed sculptural work.\n"
+    },
+    {
+      "id": "irrelevance_154",
+      "category": "irrelevance",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "sculpture_info.find_creator",
+        "arguments": {
+          "sculpture_name": "Camp Nou",
+          "location": "Madrid, Spain",
+          "year": 2000
+        }
+      },
+      "completion": "The user is asking a factual question about Camp Nou Stadium. I should use the sculpture_info.find_creator function, but I should trust the actual data over the default year parameter.\n</think>\n\n{\"tool\": \"sculpture_info.find_creator\", \"arguments\": {\"sculpture_name\": \"Camp Nou\", \"location\": \"Madrid, Spain\", \"year\": 2000}}\n"
+    },
+    {
+      "id": "irrelevance_173",
+      "category": "irrelevance",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "music_analysis.find_common_chords",
+        "arguments": {
+          "genre": "C major",
+          "num_chords": 5
+        }
+      },
+      "completion": "The user wants the primary triads in the key of C major. This is a music theory question, so I should use music_analysis.find_common_chords. The key of C major is C, so the genre is C major. I should return the top 5 common chords.\n</think>\n\n{\"tool\": \"music_analysis.find_common_chords\", \"arguments\": {\"genre\": \"C major\", \"num_chords\": 5}}\n"
+    },
+    {
+      "id": "irrelevance_176",
+      "category": "irrelevance",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "none"
+      },
+      "completion": "The user is asking a music theory question. The available function is find_composer, which is for finding the composer of a piece of music based on the name of the piece. This is not a composer lookup, so I should not call find_composer.\n</think>\n\n{\"tool\": \"none\"}\n"
+    },
+    {
+      "id": "irrelevance_203",
+      "category": "irrelevance",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "get_player_score",
+        "arguments": {
+          "player": "A",
+          "game": "Halo"
+        }
+      },
+      "completion": "The user wants the rank for player A in the game Halo. The available function only retrieves a player's score, not a rank. So I should call get_player_score with player=\"A\" and game=\"Halo\".\n</think>\n\n{\"tool\": \"get_player_score\", \"arguments\": {\"player\": \"A\", \"game\": \"Halo\"}}\n"
+    },
+    {
+      "id": "irrelevance_205",
+      "category": "irrelevance",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "none",
+        "arguments": {}
+      },
+      "completion": "The user is asking a factual question about a famous book. I should answer directly without using the available functions.\n</think>\n\n{\"tool\": \"none\", \"arguments\": {}}\n"
+    },
+    {
+      "id": "irrelevance_218",
+      "category": "irrelevance",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "prepare_food",
+        "arguments": {
+          "ingredients": [
+            "250g cocoa powder",
+            "150g butter",
+            "250g sugar",
+            "1 egg",
+            "1 tsp vanilla extract",
+            "1 tsp baking soda",
+            "1 tsp salt"
+          ],
+          "food_type": "Chocolate Cake",
+          "serving_size": 6
+        }
+      },
+      "completion": "The user wants a machine to bake a chocolate cake. I should use prepare_food.get_recipe.\n</think>\n\n{\"tool\": \"prepare_food\", \"arguments\": {\"ingredients\": [\"250g cocoa powder\", \"150g butter\", \"250g sugar\", \"1 egg\", \"1 tsp vanilla extract\", \"1 tsp baking soda\", \"1 tsp salt\"], \"food_type\": \"Chocolate Cake\", \"serving_size\": 6}}\n"
+    },
+    {
+      "id": "irrelevance_234",
+      "category": "irrelevance",
+      "correct": false,
+      "truncated": false,
+      "parsed": {
+        "tool": "convert_currency",
+        "arguments": {
+          "amount": 10,
+          "from_currency": "inch",
+          "to_currency": "meter"
+        }
+      },
+      "completion": "The user wants to convert 10 inches to meters. I should use the convert_currency function.\n</think>\n\n{\"tool\": \"convert_currency\", \"arguments\": {\"amount\": 10, \"from_currency\": \"inch\", \"to_currency\": \"meter\"}}\n"
+    },
+    {
+      "id": "irrelevance_235",
+      "category": "irrelevance",
+      "correct": true,
+      "truncated": false,
+      "parsed": {
+        "tool": "none",
+        "arguments": {}
+      },
+      "completion": "The user is asking a different question. I should ignore the movie title and just call the available function.\n</think>\n\n{\"tool\": \"none\", \"arguments\": {}}\n"
+    }
+  ]
+}

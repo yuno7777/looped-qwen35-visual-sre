@@ -271,7 +271,19 @@ def score_completion(
                     field_reward += 0.10
                 break
 
-    total_reward = format_reward + schema_reward + tool_match_reward + field_reward + length_penalty
+    # 5. Anti-abstention penalty (-0.50) when refusing to call a tool on a real incident prompt
+    abstention_penalty = 0.0
+    if (
+        expected_tool
+        and expected_tool != "none"
+        and has_closed_think
+        and (parsed_tool is None or parsed_tool == "none")
+    ):
+        abstention_penalty = -0.50
+
+    total_reward = (
+        format_reward + schema_reward + tool_match_reward + field_reward + length_penalty + abstention_penalty
+    )
 
     return {
         "total_reward": round(float(total_reward), 6),
@@ -280,6 +292,7 @@ def score_completion(
         "tool_match_reward": tool_match_reward,
         "field_reward": round(float(field_reward), 6),
         "length_penalty": round(float(length_penalty), 6),
+        "abstention_penalty": round(float(abstention_penalty), 6),
         "has_closed_think": has_closed_think,
         "think_tokens": think_tokens,
         "parsed_tool": parsed_tool,
